@@ -177,7 +177,8 @@ def remix(signal, num_channels, channel=None):
     num_channels : int
         Number of channels.
     channel : int, optional
-        The channel to select when num_signals==1, or None to average them all.
+        When reducing a signal to `num_channels` of 1, use this channel,
+        or 'None' to return the average across all channels.
 
     Returns
     -------
@@ -209,7 +210,7 @@ def remix(signal, num_channels, channel=None):
             # TODO: add weighted mixing
             return np.mean(signal, axis=-1).astype(signal.dtype)
         else:
-            # Copy the requested signal verbatim
+            # Use the requested channel verbatim
             return signal[:, channel]
     elif num_channels > 1 and signal.ndim == 1:
         # up-mix a mono signal simply by copying channels
