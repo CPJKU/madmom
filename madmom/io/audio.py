@@ -91,6 +91,8 @@ def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1,
         Sample rate to re-sample the signal to (if set) [Hz].
     num_channels : int, optional
         Number of channels to reduce the signal to.
+        If 'None', return the signal with its original channels,
+        or whatever is selected by `channel`.
     channel : int, optional
         When reducing a signal to `num_channels` of 1, use this channel,
         or 'None' to return the average across all channels.
@@ -153,7 +155,8 @@ def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1,
     # output options
     if num_channels:
         call.extend(["-ac", str(int(num_channels))])
-    if channel is not None and num_channels == 1:
+    if channel is not None and (num_channels == 1 or num_channels is None):
+        # Calling with channel=x and num_channels
         call.extend(["-af", "pan=mono|c0=c%d" % int(channel)])
     if sample_rate:
         call.extend(["-ar", str(int(sample_rate))])
@@ -180,8 +183,11 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
         Sample rate to re-sample the signal to (if set) [Hz].
     num_channels : int, optional
         Number of channels to reduce the signal to.
-    channe : int, optional
-        Single channel to select if `num_channels` is '1'.
+        If 'None', return the signal with its original channels,
+        or whatever is selected by `channel`.
+    channel : int, optional
+        When reducing a signal to `num_channels` of 1, use this channel,
+        or 'None' to return the average across all channels.
     skip : float, optional
         Number of seconds to skip at beginning of file.
     max_len : float, optional
@@ -228,9 +234,8 @@ def decode_to_disk(infile, fmt='f32le', sample_rate=None, num_channels=1,
                          % outfile)
     # call ffmpeg (throws exception on error)
     try:
-        call = _ffmpeg_call(infile, outfile, fmt, sample_rate,
-                            num_channels, channel,
-                            skip, max_len, cmd,
+        call = _ffmpeg_call(infile, outfile, fmt, sample_rate, num_channels,
+                            channel, skip, max_len, cmd,
                             replaygain_mode=replaygain_mode,
                             replaygain_preamp=replaygain_preamp)
         subprocess.check_call(call)
@@ -260,6 +265,8 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
         Sample rate to re-sample the signal to (if set) [Hz].
     num_channels : int, optional
         Number of channels to reduce the signal to.
+        If 'None', return the signal with its original channels,
+        or whatever is selected by `channel`.
     channel : int, optional
         When reducing a signal to `num_channels` of 1, use this channel,
         or 'None' to return the average across all channels.
@@ -300,9 +307,8 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
     #       reacts on that. A cleaner solution would be calling proc.terminate
     #       explicitly, but this is only available in Python 2.6+. proc.wait
     #       needs to be called in any case.
-    call = _ffmpeg_call(infile, "pipe:1", fmt, sample_rate,
-                        num_channels, channel,
-                        skip, max_len, cmd,
+    call = _ffmpeg_call(infile, "pipe:1", fmt, sample_rate, num_channels,
+                        channel, skip, max_len, cmd,
                         replaygain_mode=replaygain_mode,
                         replaygain_preamp=replaygain_preamp)
     # redirect stdout to a pipe and buffer as requested
@@ -332,6 +338,8 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
         Sample rate to re-sample the signal to (if set) [Hz].
     num_channels : int, optional
         Number of channels to reduce the signal to.
+        If 'None', return the signal with its original channels,
+        or whatever is selected by `channel`.
     channel : int, optional
         When reducing a signal to `num_channels` of 1, use this channel,
         or 'None' to return the average across all channels.
@@ -436,8 +444,9 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
         Sample rate to re-sample the signal to [Hz]; 'None' returns the signal
         in its original rate.
     num_channels : int, optional
-        Reduce or expand the signal to `num_channels` channels; 'None' returns
-        the signal with its original channels.
+        Reduce or expand the signal to `num_channels` channels.
+        If 'None', return the signal with its original channels,
+        or whatever is selected by `channel`.
     channel : int, optional
         When reducing a signal to `num_channels` of 1, use this channel,
         or 'None' to return the average across all channels.
@@ -519,8 +528,9 @@ def load_wave_file(filename, sample_rate=None, num_channels=None, channel=None,
         Desired sample rate of the signal [Hz], or 'None' to return the
         signal in its original rate.
     num_channels : int, optional
-        Reduce or expand the signal to `num_channels` channels, or 'None'
-        to return the signal with its original channels.
+        Reduce or expand the signal to `num_channels` channels
+        If 'None', return the signal with its original channels,
+        or whichever is selected by `channel`.
     channel : int, optional
         When reducing a signal to `num_channels` of 1, use this channel,
         or 'None' to return the average across all channels.
@@ -625,8 +635,9 @@ def load_audio_file(filename, sample_rate=None, num_channels=None,
         Desired sample rate of the signal [Hz], or 'None' to return the
         signal in its original rate.
     num_channels : int, optional
-        Reduce or expand the signal to `num_channels` channels, or 'None'
-        to return the signal with its original channels.
+        Reduce or expand the signal to `num_channels` channels.
+        If 'None', return the signal with its original channels,
+        or whatever is selected by `channel`.
     channel : int, optional
         When reducing a signal to `num_channels` of 1, use this channel,
         or 'None' to return the average across all channels.
