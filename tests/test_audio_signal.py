@@ -338,6 +338,13 @@ class TestMixFunction(unittest.TestCase):
         self.assertTrue(result.shape == sig_2d.shape)
         self.assertTrue(result.dtype == np.int)
 
+    def test_channel_selection(self):
+        result = remix(sig_2d, 1, channel=0)
+        self.assertEquals(result.shape, sig_1d.shape)
+        self.assertTrue(np.array_equal(result, sig_1d))
+        result = remix(sig_2d, 1, channel=1)
+        self.assertTrue(np.array_equal(result, sig_2d[:, 1]), 0)
+
     def test_values(self):
         # mono signals
         result = remix(sig_1d, 1)

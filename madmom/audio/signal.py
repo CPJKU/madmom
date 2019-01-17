@@ -166,7 +166,7 @@ def normalize(signal):
     return np.asanyarray(signal / scaling, dtype=signal.dtype)
 
 
-def remix(signal, num_channels):
+def remix(signal, num_channels, channel=None):
     """
     Remix the signal to have the desired number of channels.
 
@@ -176,6 +176,9 @@ def remix(signal, num_channels):
         Signal to be remixed.
     num_channels : int
         Number of channels.
+    channel : int, optional
+        When reducing a signal to `num_channels` of 1, use this channel,
+        or 'None' to return the average across all channels.
 
     Returns
     -------
@@ -196,16 +199,19 @@ def remix(signal, num_channels):
     convert the dtype first.
 
     """
-    # convert to the desired number of channels
     if num_channels == signal.ndim or num_channels is None:
         # return as many channels as there are.
         return signal
     elif num_channels == 1 and signal.ndim > 1:
-        # down-mix to mono
-        # Note: to prevent clipping, the signal is converted to float first
-        #       and then converted back to the original dtype
-        # TODO: add weighted mixing
-        return np.mean(signal, axis=-1).astype(signal.dtype)
+        if channel is None:
+            # down-mix to mono
+            # Note: to prevent clipping, the signal is converted to float first
+            #       and then converted back to the original dtype
+            # TODO: add weighted mixing
+            return np.mean(signal, axis=-1).astype(signal.dtype)
+        else:
+            # Use the requested channel verbatim
+            return signal[:, channel]
     elif num_channels > 1 and signal.ndim == 1:
         # up-mix a mono signal simply by copying channels
         return np.tile(signal[:, np.newaxis], num_channels)
@@ -488,6 +494,7 @@ def load_audio_file(*args, **kwargs):
 # signal classes
 SAMPLE_RATE = None
 NUM_CHANNELS = None
+CHANNEL = None
 START = None
 STOP = None
 NORM = False
@@ -510,6 +517,9 @@ class Signal(np.ndarray):
     num_channels : int, optional
         Reduce or expand the signal to `num_channels` channels, or 'None'
         to return the signal with its original channels.
+    channel : int, optional
+        When reducing a signal to `num_channels` of 1, use this channel,
+        or 'None' to return the average across all channels.
     start : float, optional
         Start position [seconds].
     stop : float, optional
@@ -581,14 +591,14 @@ class Signal(np.ndarray):
     # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, data, sample_rate=SAMPLE_RATE,
-                 num_channels=NUM_CHANNELS, start=START, stop=STOP, norm=NORM,
-                 gain=GAIN, dtype=DTYPE, **kwargs):
+                 num_channels=NUM_CHANNELS, channel=CHANNEL, start=START,
+                 stop=STOP, norm=NORM, gain=GAIN, dtype=DTYPE, **kwargs):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, data, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
-                start=START, stop=STOP, norm=NORM, gain=GAIN, dtype=DTYPE,
-                **kwargs):
+                channel=CHANNEL, start=START, stop=STOP, norm=NORM, gain=GAIN,
+                dtype=DTYPE, **kwargs):
         from ..io.audio import load_audio_file
         # try to load an audio file if the data is not a numpy array
         if not isinstance(data, np.ndarray):
@@ -602,7 +612,7 @@ class Signal(np.ndarray):
             data.sample_rate = sample_rate
         # remix to desired number of channels
         if num_channels:
-            data = remix(data, num_channels)
+            data = remix(data, num_channels, channel)
         # normalize signal if needed
         if norm:
             data = normalize(data)
