@@ -462,7 +462,7 @@ def load_wave_file(*args, **kwargs):
     warnings.warn('Deprecated as of version 0.16. Please use madmom.io.audio.'
                   'load_wave_file instead. Will be removed in version 0.18.')
     from ..io.audio import load_wave_file
-    return load_wave_file()
+    return load_wave_file(*args, **kwargs)
 
 
 def write_wave_file(*args, **kwargs):
