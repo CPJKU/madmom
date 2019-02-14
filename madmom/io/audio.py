@@ -14,6 +14,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import io
 
 import numpy as np
 
@@ -131,6 +132,8 @@ def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1,
         in_ac = str(int(infile.num_channels))
         in_ar = str(int(infile.sample_rate))
         infile = str("pipe:0")
+    elif isinstance(infile, io.IOBase):
+        infile = "-"
     else:
         infile = str(infile)
     # general options
@@ -300,9 +303,9 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
 
     """
     # check input file type
-    if not isinstance(infile, (string_types, Signal)):
-        raise ValueError("only file names or Signal instances are supported "
-                         "as `infile`, not %s." % infile)
+    if not isinstance(infile, (string_types, io.IOBase, Signal)):
+        raise ValueError("only file names, file objects or Signal instances "
+                         "are supported as `infile`, not %s." % infile)
     # Note: closing the file-like object only stops decoding because ffmpeg
     #       reacts on that. A cleaner solution would be calling proc.terminate
     #       explicitly, but this is only available in Python 2.6+. proc.wait
@@ -312,7 +315,7 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
                         replaygain_mode=replaygain_mode,
                         replaygain_preamp=replaygain_preamp)
     # redirect stdout to a pipe and buffer as requested
-    if isinstance(infile, Signal):
+    if isinstance(infile, Signal) or isinstance(infile, io.IOBase):
         proc = subprocess.Popen(call, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, bufsize=buf_size)
     else:
@@ -361,9 +364,9 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
 
     """
     # check input file type
-    if not isinstance(infile, (string_types, Signal)):
-        raise ValueError("only file names or Signal instances are supported "
-                         "as `infile`, not %s." % infile)
+    if not isinstance(infile, (string_types, io.IOBase, Signal)):
+        raise ValueError("only file names, file objects or Signal instances "
+                         "are supported as `infile`, not %s." % infile)
     # prepare decoding to pipe
     _, proc = decode_to_pipe(infile, fmt=fmt, sample_rate=sample_rate,
                              num_channels=num_channels, channel=channel,
@@ -379,6 +382,9 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
         except AttributeError:
             mv = memoryview(infile)
             signal, _ = proc.communicate(mv.cast('b'))
+    elif isinstance(infile, io.IOBase):
+        signal, _ = proc.communicate(infile.read())
+        infile.seek(0)
     else:
         signal, _ = proc.communicate()
     if proc.returncode != 0:
@@ -410,8 +416,19 @@ def get_file_info(infile, cmd='ffprobe'):
         info['sample_rate'] = infile.sample_rate
     else:
         # call ffprobe
-        output = subprocess.check_output([cmd, "-v", "quiet", "-show_streams",
-                                          infile])
+        if isinstance(infile, io.IOBase):
+            call = [cmd, "-v", "quiet", "-show_streams", "pipe:0"]
+            proc = subprocess.Popen(call, stdin=subprocess.PIPE,
+                                    stdout=subprocess.PIPE)
+            output, _ = proc.communicate(infile.read())
+            retcode = proc.poll()
+            infile.seek(0)
+            if retcode:
+                raise subprocess.CalledProcessError(retcode, call,
+                                                    output=output)
+        else:
+            output = subprocess.check_output([cmd, "-v", "quiet",
+                                              "-show_streams", infile])
         # parse information
         for line in output.split():
             if line.startswith(b'channels='):
@@ -670,14 +687,6 @@ def load_audio_file(filename, sample_rate=None, num_channels=None,
     For all other audio files, this can not be guaranteed.
 
     """
-    # determine the name of the file if it is a file handle
-    try:
-        # close the file handle if it is open
-        filename.close()
-        # use the file name
-        filename = filename.name
-    except AttributeError:
-        pass
     # try reading as a wave file
     error = "All attempts to load audio file %r failed." % filename
     try:
