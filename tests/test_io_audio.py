@@ -154,26 +154,14 @@ class TestLoadAudioFileFunction(unittest.TestCase):
 
     def test_file_handle(self):
         # test wave loader
-        file_handle = open(sample_file, 'rb')
-        signal, sample_rate = load_audio_file(file_handle)
-        self.assertIsInstance(signal, np.ndarray)
-        self.assertTrue(signal.dtype == np.int16)
-        self.assertTrue(type(sample_rate) == int)
-        file_handle.close()
-        # closed file handle
-        signal, sample_rate = load_audio_file(file_handle)
+        with open(sample_file, 'rb') as file_handle:
+            signal, sample_rate = load_audio_file(file_handle)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
         # test ffmpeg loader
-        file_handle = open(sample_file, 'rb')
-        signal, sample_rate = load_audio_file(file_handle)
-        self.assertIsInstance(signal, np.ndarray)
-        self.assertTrue(signal.dtype == np.int16)
-        self.assertTrue(type(sample_rate) == int)
-        file_handle.close()
-        # closed file handle
-        signal, sample_rate = load_audio_file(file_handle)
+        with open(sample_file, 'rb') as file_handle:
+            signal, sample_rate = load_audio_file(file_handle)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
