@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function
 
 import unittest
 from os.path import join as pj
+import io
 
 from madmom.io.audio import *
 from . import AUDIO_PATH, DATA_PATH
@@ -33,8 +34,8 @@ class TestLoadWaveFileFunction(unittest.TestCase):
 
     def test_file_handle(self):
         # open file handle
-        file_handle = open(sample_file, 'rb')
-        signal, sample_rate = load_wave_file(file_handle)
+        with open(sample_file, 'rb') as file_handle:
+            signal, sample_rate = load_wave_file(file_handle)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
@@ -153,26 +154,14 @@ class TestLoadAudioFileFunction(unittest.TestCase):
 
     def test_file_handle(self):
         # test wave loader
-        file_handle = open(sample_file)
-        signal, sample_rate = load_audio_file(file_handle)
-        self.assertIsInstance(signal, np.ndarray)
-        self.assertTrue(signal.dtype == np.int16)
-        self.assertTrue(type(sample_rate) == int)
-        file_handle.close()
-        # closed file handle
-        signal, sample_rate = load_audio_file(file_handle)
+        with open(sample_file, 'rb') as file_handle:
+            signal, sample_rate = load_audio_file(file_handle)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
         # test ffmpeg loader
-        file_handle = open(sample_file)
-        signal, sample_rate = load_audio_file(file_handle)
-        self.assertIsInstance(signal, np.ndarray)
-        self.assertTrue(signal.dtype == np.int16)
-        self.assertTrue(type(sample_rate) == int)
-        file_handle.close()
-        # closed file handle
-        signal, sample_rate = load_audio_file(file_handle)
+        with open(sample_file, 'rb') as file_handle:
+            signal, sample_rate = load_audio_file(file_handle)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
@@ -346,6 +335,16 @@ class TestDecodeToDisk(unittest.TestCase):
             data = np.frombuffer(f.read(), dtype=np.int16).reshape((-1, 2))
             adjusted_spl = Signal(data).spl()
         self.assertGreater(orig_spl, adjusted_spl)
+
+
+class TestLoadAudioFromFileObject(unittest.TestCase):
+
+    def test_file_object(self):
+        for file_path in [sample_file, flac_file]:
+            disk_signal = Signal(file_path)
+            with open(file_path, 'rb') as file_handle:
+                memory_signal = Signal(io.BytesIO(file_handle.read()))
+            self.assertTrue((disk_signal == memory_signal).all)
 
 
 # clean up
