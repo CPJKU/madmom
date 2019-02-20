@@ -129,6 +129,13 @@ class TestLoadMidiFunction(unittest.TestCase):
         notes_txt = np.loadtxt(pj(ANNOTATIONS_PATH, 'stereo_sample.notes'))
         self.assertTrue(np.allclose(notes[:, :4], notes_txt, atol=1e-3))
 
+    def test_load_midi_sustained(self):
+        notes = load_midi(pj(ANNOTATIONS_PATH, 'stereo_sample_sustained.mid'))
+        self.assertTrue(np.allclose(notes[0, 2], 3.32291667))
+        notes = load_midi(pj(ANNOTATIONS_PATH, 'stereo_sample_sustained.mid'),
+                          sustain=True)
+        self.assertTrue(np.allclose(notes[0, 2], 4.00208333))
+
 
 # clean up
 def teardown_module():

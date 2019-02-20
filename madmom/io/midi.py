@@ -557,14 +557,16 @@ class MIDIFile(mido.MidiFile):
             self._save(f)
 
 
-def load_midi(filename):
+def load_midi(filename, sustain=False):
     """
     Load notes from a MIDI file.
 
     Parameters
     ----------
-    filename: str
+    filename : str
         MIDI file.
+    sustain : bool, optional
+        Apply sustain information to the notes.
 
     Returns
     -------
@@ -572,6 +574,8 @@ def load_midi(filename):
         Notes ('onset time' 'note number' 'duration' 'velocity' 'channel')
 
     """
+    if sustain:
+        return MIDIFile(filename).sustained_notes
     return MIDIFile(filename).notes
 
 
