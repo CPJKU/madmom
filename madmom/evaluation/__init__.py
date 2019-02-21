@@ -687,10 +687,10 @@ class MeanEvaluation(SumEvaluation):
         # TODO: unify this with SimpleEvaluation but
         #       add option to provide field formatters (e.g. 3d or 5.2f)
         # format with floats instead of integers
-        ret = 'Annotations: %5.2f TP: %5.2f FP: %5.2f FN: %5.2f' \
-              'Precision: %.3f Recall: %.3f F-measure: %.3f Acc: %.3f' % \
-              (self.num_annotations, self.num_tp, self.num_fp, self.num_fn,
-               self.precision, self.recall, self.fmeasure, self.accuracy)
+        ret += 'Annotations: %5.2f TP: %5.2f FP: %5.2f FN: %5.2f ' \
+               'Precision: %.3f Recall: %.3f F-measure: %.3f Acc: %.3f' % \
+               (self.num_annotations, self.num_tp, self.num_fp, self.num_fn,
+                self.precision, self.recall, self.fmeasure, self.accuracy)
         return ret
 
 
