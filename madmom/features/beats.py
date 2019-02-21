@@ -771,6 +771,42 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         return g
 
 
+def threshold_activations(activations, threshold):
+    """
+    Threshold activations to include only the main segment exceeding the given
+    threshold (i.e. first to last time/index exceeding the threshold).
+
+    Parameters
+    ----------
+    activations : numpy array
+        Activations to be thresholded.
+    threshold : float
+        Threshold value.
+
+    Returns
+    -------
+    activations : numpy array
+        Thresholded activations
+    start : int
+        Index of the first activation exceeding the threshold.
+
+    Notes
+    -----
+
+    This function can be used to extract the main segment of beat activations
+    to track only the beats where the activations exceed the threshold.
+
+    """
+    first = last = 0
+    # use only the activations > threshold
+    idx = np.nonzero(activations >= threshold)[0]
+    if idx.any():
+        first = max(first, np.min(idx))
+        last = min(len(activations), np.max(idx) + 1)
+    # return thresholded activations segment and first index
+    return activations[first:last], first
+
+
 class DBNBeatTrackingProcessor(OnlineProcessor):
     """
     Beat tracking with RNNs and a dynamic Bayesian network (DBN) approximated
@@ -913,13 +949,8 @@ class DBNBeatTrackingProcessor(OnlineProcessor):
         first = 0
         # use only the activations > threshold
         if self.threshold:
-            idx = np.nonzero(activations >= self.threshold)[0]
-            if idx.any():
-                first = max(first, np.min(idx))
-                last = min(len(activations), np.max(idx) + 1)
-            else:
-                last = first
-            activations = activations[first:last]
+            activations, first = threshold_activations(activations,
+                                                       self.threshold)
         # return the beats if no activations given / remain after thresholding
         if not activations.any():
             return beats

@@ -14,6 +14,7 @@ import warnings
 
 import numpy as np
 
+from .beats import threshold_activations
 from .beats_hmm import (BarStateSpace, BarTransitionModel,
                         GMMPatternTrackingObservationModel,
                         MultiPatternStateSpace,
@@ -270,13 +271,8 @@ class DBNDownBeatTrackingProcessor(Processor):
         # use only the activations > threshold (init offset to be added later)
         first = 0
         if self.threshold:
-            idx = np.nonzero(activations >= self.threshold)[0]
-            if idx.any():
-                first = max(first, np.min(idx))
-                last = min(len(activations), np.max(idx) + 1)
-            else:
-                last = first
-            activations = activations[first:last]
+            activations, first = threshold_activations(activations,
+                                                       self.threshold)
         # return no beats if no activations given / remain after thresholding
         if not activations.any():
             return np.empty((0, 2))
