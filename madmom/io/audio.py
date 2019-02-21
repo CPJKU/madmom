@@ -315,7 +315,7 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
                         replaygain_mode=replaygain_mode,
                         replaygain_preamp=replaygain_preamp)
     # redirect stdout to a pipe and buffer as requested
-    if isinstance(infile, Signal) or isinstance(infile, io.IOBase):
+    if isinstance(infile, (Signal, io.IOBase)):
         proc = subprocess.Popen(call, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, bufsize=buf_size)
     else:

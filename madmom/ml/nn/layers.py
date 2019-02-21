@@ -122,7 +122,7 @@ class RecurrentLayer(FeedForwardLayer):
         self._prev = self.init
 
     def __getstate__(self):
-        # copy everything to a pickleable object
+        # copy everything to a picklable object
         state = self.__dict__.copy()
         # do not pickle attributes needed for stateful processing
         state.pop('_prev', None)
@@ -361,7 +361,7 @@ class LSTMLayer(RecurrentLayer):
         self._state = self.cell_init
 
     def __getstate__(self):
-        # copy everything to a pickleable object
+        # copy everything to a picklable object
         state = self.__dict__.copy()
         # do not pickle attributes needed for stateful processing
         state.pop('_prev', None)
@@ -561,7 +561,7 @@ class GRULayer(RecurrentLayer):
         self._prev = self.init
 
     def __getstate__(self):
-        # copy everything to a pickleable object
+        # copy everything to a picklable object
         state = self.__dict__.copy()
         # do not pickle attributes needed for stateful processing
         state.pop('_prev', None)

@@ -67,7 +67,7 @@ class _OutputChecker(_doctest_OutputChecker):
         Returns
         -------
         bool
-            'True' if the output maches the expectation.
+            'True' if the output matches the expectation.
 
         """
         import re

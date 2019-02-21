@@ -185,7 +185,7 @@ def search_files(files, suffix=None, recursion_depth=0):
         file_list.append(files)
     else:
         raise IOError("%s does not exist." % files)
-    # filter with the given sufix
+    # filter with the given suffix
     if suffix is not None:
         file_list = filter_files(file_list, suffix)
     # remove duplicates
@@ -474,8 +474,7 @@ def expand_notes(notes, duration=0.6, velocity=100):
         Notes (including note duration and velocity).
 
     """
-    if not notes.ndim == 2:
-        raise ValueError('unknown format for `notes`')
+    notes = np.array(notes, ndmin=2)
     rows, columns = notes.shape
     if columns >= 4:
         return notes

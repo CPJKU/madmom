@@ -64,12 +64,6 @@ class Processor(object):
             except TypeError:
                 # Python 2 doesn't have/need the encoding
                 obj = pickle.load(f)
-        # warn if the unpickled Processor is of other type
-        if obj.__class__ is not cls:
-            import warnings
-            warnings.warn("Expected Processor of class '%s' but loaded "
-                          "Processor is of class '%s', processing anyways." %
-                          (cls.__name__, obj.__class__.__name__))
         return obj
 
     def dump(self, outfile):
@@ -848,7 +842,7 @@ def process_online(processor, infile, outfile, **kwargs):
         Processor to be processed.
     infile : str or file handle, optional
         Input file (handle). If none is given, the stream present at the
-        system's audio inpup is used. Additional keyword arguments can be used
+        system's audio input is used. Additional keyword arguments can be used
         to influence the frame size and hop size.
     outfile : str or file handle
         Output file (handle).
@@ -867,7 +861,7 @@ def process_online(processor, infile, outfile, **kwargs):
     # set default values
     kwargs['sample_rate'] = kwargs.get('sample_rate', 44100)
     kwargs['num_channels'] = kwargs.get('num_channels', 1)
-    # if no iput file is given, create a Stream with the given arguments
+    # if no input file is given, create a Stream with the given arguments
     if infile is None:
         # open a stream and start if not running already
         stream = Stream(**kwargs)
