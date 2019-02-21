@@ -474,8 +474,7 @@ def expand_notes(notes, duration=0.6, velocity=100):
         Notes (including note duration and velocity).
 
     """
-    if not notes.ndim == 2:
-        raise ValueError('unknown format for `notes`')
+    notes = np.array(notes, ndmin=2)
     rows, columns = notes.shape
     if columns >= 4:
         return notes
