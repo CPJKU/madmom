@@ -1181,7 +1181,7 @@ class OnsetPeakPickingProcessor(OnlineProcessor):
         if self.buffer is None or reset:
             # reset the processor
             self.reset()
-            # put 0s in front (depending on conext given by pre_max
+            # put 0s in front (depending on context given by pre_max
             init = np.zeros(int(np.round(self.pre_max * self.fps)))
             buffer = np.insert(activations, 0, init, axis=0)
             # offset the counter, because we buffer the activations

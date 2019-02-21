@@ -143,7 +143,7 @@ class MultiModelSelectionProcessor(Processor):
     Examples
     --------
     The MultiModelSelectionProcessor takes a list of model predictions as it's
-    call argument. Thus, `ppost_processor` of `RNNBeatProcessor` hast to be set
+    call argument. Thus, `post_processor` of `RNNBeatProcessor` hast to be set
     to 'None' in order to get the predictions of all models.
 
     >>> proc = RNNBeatProcessor(post_processor=None)
@@ -869,7 +869,7 @@ class DBNBeatTrackingProcessor(OnlineProcessor):
         self.fps = fps
         self.min_bpm = min_bpm
         self.max_bpm = max_bpm
-        # kepp state in online mode
+        # keep state in online mode
         self.online = online
         # TODO: refactor the visualisation stuff
         if self.online:

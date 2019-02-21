@@ -843,7 +843,7 @@ def _diff_frames(diff_ratio, hop_size, frame_size, window=np.hanning):
     frame_size : int
         Size of one frames in samples.
     window : numpy ufunc or array
-        Window funtion.
+        Window function.
 
     Returns
     -------
@@ -1070,7 +1070,7 @@ class SpectrogramDifferenceProcessor(Processor):
         self._buffer = None
 
     def __getstate__(self):
-        # copy everything to a pickleable object
+        # copy everything to a picklable object
         state = self.__dict__.copy()
         # do not pickle attributes needed for stateful processing
         state.pop('_buffer', None)

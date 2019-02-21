@@ -884,7 +884,7 @@ class SyncronizeFeaturesProcessor(Processor):
             (num_beats - 1, self.beat_subdivisions, feat_dim))
         # start first beat 20ms before actual annotation
         beat_start = int(max(0, np.floor((beats[0] - 0.02) * self.fps)))
-        # TODO: speed this up, could propably be done without a loop
+        # TODO: speed this up, could probably be done without a loop
         for i in range(num_beats - 1):
             # aggregate all feature values that fall into a window of
             # length = beat_duration / beat_subdivisions, centered on the beat
@@ -999,7 +999,7 @@ class RNNBarProcessor(Processor):
         Parameters
         ----------
         data : tuple
-            Tuple containg a signal or file (handle) and corresponding beat
+            Tuple containing a signal or file (handle) and corresponding beat
             times [seconds].
 
         Returns
@@ -1102,7 +1102,7 @@ class DBNBarTrackingProcessor(Processor):
             tm = BarTransitionModel(st, transition_lambda=1)
             state_spaces.append(st)
             transition_models.append(tm)
-        # Note: treat diffrent bar lengths as different patterns and use the
+        # Note: treat different bar lengths as different patterns and use the
         #       existing MultiPatternStateSpace and MultiPatternTransitionModel
         self.st = MultiPatternStateSpace(state_spaces)
         self.tm = MultiPatternTransitionModel(

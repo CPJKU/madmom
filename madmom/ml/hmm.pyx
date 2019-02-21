@@ -66,7 +66,7 @@ class TransitionModel(object):
     >>> tm  # doctest: +ELLIPSIS
     <madmom.ml.hmm.TransitionModel object at 0x...>
 
-    TransitionModel.from_dense will check if the supplied probabilties for
+    TransitionModel.from_dense will check if the supplied probabilities for
     each state sum to 1 (and thus represent a correct probability distribution)
 
     >>> tm = TransitionModel.from_dense([0, 1], [1, 0], [0.5, 1.0])
@@ -449,7 +449,7 @@ class HiddenMarkovModel(object):
         self._prev = self.initial_distribution.copy()
 
     def __getstate__(self):
-        # copy everything to a pickleable object
+        # copy everything to a picklable object
         state = self.__dict__.copy()
         # do not pickle attributes needed for stateful processing
         state.pop('_prev', None)
@@ -598,7 +598,7 @@ class HiddenMarkovModel(object):
         observations : numpy array, shape (num_frames, num_densities)
             Observations to compute the forward variables for.
         reset : bool, optional
-            Reset the HMM to its inital state before computing the forward
+            Reset the HMM to its initial state before computing the forward
             variables.
 
         Returns

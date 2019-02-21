@@ -848,7 +848,7 @@ def process_online(processor, infile, outfile, **kwargs):
         Processor to be processed.
     infile : str or file handle, optional
         Input file (handle). If none is given, the stream present at the
-        system's audio inpup is used. Additional keyword arguments can be used
+        system's audio input is used. Additional keyword arguments can be used
         to influence the frame size and hop size.
     outfile : str or file handle
         Output file (handle).
@@ -867,7 +867,7 @@ def process_online(processor, infile, outfile, **kwargs):
     # set default values
     kwargs['sample_rate'] = kwargs.get('sample_rate', 44100)
     kwargs['num_channels'] = kwargs.get('num_channels', 1)
-    # if no iput file is given, create a Stream with the given arguments
+    # if no input file is given, create a Stream with the given arguments
     if infile is None:
         # open a stream and start if not running already
         stream = Stream(**kwargs)
