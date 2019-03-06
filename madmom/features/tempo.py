@@ -193,7 +193,7 @@ def dominant_interval(histogram, smooth=None):
 
 
 # extract the tempo from a histogram
-def detect_tempo(histogram, fps):
+def detect_tempo(histogram, fps, interpolate=False):
     """
     Extract the tempo from the given histogram.
 
@@ -213,24 +213,26 @@ def detect_tempo(histogram, fps):
 
     """
     from scipy.signal import argrelmax
+    from scipy.interpolate import interp1d
     # histogram of IBIs
-    bins = histogram[0]
-    # convert the histogram bin delays to tempi in beats per minute
-    tempi = 60.0 * fps / histogram[1]
+    bins, intervals = histogram
+    # create interpolation function
+    interpolation_fn = interp1d(intervals, bins, 'quadratic')
+    # generate new intervals with 1000x the resolution
+    intervals = np.arange(intervals[0], intervals[-1], 0.001)
+    tempi = 60.0 * fps / intervals
+    # apply quadratic interpolation
+    bins = interpolation_fn(intervals)
     # to get the two dominant tempi, just keep the peaks
     # use 'wrap' mode to also get peaks at the borders
     peaks = argrelmax(bins, mode='wrap')[0]
     # we need more than 1 peak to report multiple tempi
     if len(peaks) == 0:
-        # a flat histogram has no peaks, use the center bin
-        if len(bins):
-            ret = np.asarray([tempi[len(bins) // 2], 1.])
-        else:
-            # otherwise: no peaks, no tempo
-            ret = np.asarray([NO_TEMPO, 0.])
+        # no peaks, no tempo
+        tempi = np.asarray([NO_TEMPO, 0.])
     elif len(peaks) == 1:
         # report only the strongest tempo
-        ret = np.asarray([tempi[peaks[0]], 1.])
+        tempi = np.asarray([tempi[peaks[0]], 1.])
     else:
         # sort the peaks in descending order of bin heights
         sorted_peaks = peaks[np.argsort(bins[peaks])[::-1]]
@@ -238,9 +240,9 @@ def detect_tempo(histogram, fps):
         strengths = bins[sorted_peaks]
         strengths /= np.sum(strengths)
         # return the tempi and their normalized strengths
-        ret = np.asarray(list(zip(tempi[sorted_peaks], strengths)))
+        tempi = np.asarray(list(zip(tempi[sorted_peaks], strengths)))
     # return the tempi
-    return np.atleast_2d(ret)
+    return np.atleast_2d(tempi)
 
 
 # tempo histogram processor classes
