@@ -951,11 +951,14 @@ class DBNBeatTrackingProcessor(OnlineProcessor):
         if self.threshold:
             activations, first = threshold_activations(activations,
                                                        self.threshold)
-        # return the beats if no activations given / remain after thresholding
+        # return no beats if no activations given / remain after thresholding
         if not activations.any():
             return beats
         # get the best state path by calling the viterbi algorithm
         path, _ = self.hmm.viterbi(activations)
+        # also return no beats if no path was found
+        if not path.any():
+            return beats
         # correct the beat positions if needed
         if self.correct:
             # for each detection determine the "beat range", i.e. states where

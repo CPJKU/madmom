@@ -154,3 +154,8 @@ class TestDBNBeatTrackingProcessorClass(unittest.TestCase):
         beats = [processor.process_forward(np.atleast_1d(act), reset=False)
                  for act in sample_lstm_act]
         self.assertTrue(np.allclose(np.nonzero(beats), [3, 79, 149, 216, 252]))
+
+    def test_empty_path(self):
+        # beat activation which leads to an empty path
+        act = np.array([0, 1, 0, 1, 0, 1])
+        self.assertTrue(np.allclose(self.processor(act), []))
