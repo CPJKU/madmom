@@ -99,7 +99,7 @@ def chords(labels):
 
 def chord(label):
     """
-    Transform a chord label into the internal numeric represenation of
+    Transform a chord label into the internal numeric representation of
     (root, bass, intervals array) as defined by `CHORD_DTYPE`.
 
     Parameters

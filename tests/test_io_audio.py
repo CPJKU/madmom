@@ -7,19 +7,20 @@ This file contains tests for the madmom.audio.signal module.
 
 from __future__ import absolute_import, division, print_function
 
-import os
-import sys
-import tempfile
 import unittest
 from os.path import join as pj
+import io
 
 from madmom.io.audio import *
 from . import AUDIO_PATH, DATA_PATH
-from .test_audio_comb_filters import sig_1d, sig_2d
 
 sample_file = pj(AUDIO_PATH, 'sample.wav')
 sample_file_22k = pj(AUDIO_PATH, 'sample_22050.wav')
 stereo_sample_file = pj(AUDIO_PATH, 'stereo_sample.wav')
+flac_file = pj(AUDIO_PATH, 'stereo_sample.flac')
+rg_flac_file = pj(AUDIO_PATH, 'stereo_sample_rg.flac')
+loud_rg_flac_file = pj(AUDIO_PATH, 'stereo_chirp_rg.flac')
+
 tmp_file = tempfile.NamedTemporaryFile(delete=False).name
 
 
@@ -33,8 +34,8 @@ class TestLoadWaveFileFunction(unittest.TestCase):
 
     def test_file_handle(self):
         # open file handle
-        file_handle = open(sample_file, 'rb')
-        signal, sample_rate = load_wave_file(file_handle)
+        with open(sample_file, 'rb') as file_handle:
+            signal, sample_rate = load_wave_file(file_handle)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
@@ -71,7 +72,14 @@ class TestLoadWaveFileFunction(unittest.TestCase):
 
         self.assertTrue(len(signal) == 182919)
         self.assertTrue(sample_rate == 44100)
-        self.assertTrue(signal.shape == (182919, ))
+        self.assertTrue(signal.shape == (182919,))
+
+    def test_channel_choice(self):
+        signal, sample_rate = load_wave_file(stereo_sample_file, channel=0)
+        self.assertTrue(signal.shape == (182919,))
+        self.assertTrue(np.allclose(signal[:4], [33, 35, 29, 36]))
+        signal, sample_rate = load_wave_file(stereo_sample_file, channel=1)
+        self.assertTrue(np.allclose(signal[:4], [38, 36, 34, 31]))
 
     def test_upmix(self):
         signal, sample_rate = load_wave_file(sample_file, num_channels=2)
@@ -146,26 +154,14 @@ class TestLoadAudioFileFunction(unittest.TestCase):
 
     def test_file_handle(self):
         # test wave loader
-        file_handle = open(sample_file)
-        signal, sample_rate = load_audio_file(file_handle)
-        self.assertIsInstance(signal, np.ndarray)
-        self.assertTrue(signal.dtype == np.int16)
-        self.assertTrue(type(sample_rate) == int)
-        file_handle.close()
-        # closed file handle
-        signal, sample_rate = load_audio_file(file_handle)
+        with open(sample_file, 'rb') as file_handle:
+            signal, sample_rate = load_audio_file(file_handle)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
         # test ffmpeg loader
-        file_handle = open(sample_file)
-        signal, sample_rate = load_audio_file(file_handle)
-        self.assertIsInstance(signal, np.ndarray)
-        self.assertTrue(signal.dtype == np.int16)
-        self.assertTrue(type(sample_rate) == int)
-        file_handle.close()
-        # closed file handle
-        signal, sample_rate = load_audio_file(file_handle)
+        with open(sample_file, 'rb') as file_handle:
+            signal, sample_rate = load_audio_file(file_handle)
         self.assertIsInstance(signal, np.ndarray)
         self.assertTrue(signal.dtype == np.int16)
         self.assertTrue(type(sample_rate) == int)
@@ -193,6 +189,11 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         self.assertTrue(sample_rate == 44100)
         self.assertTrue(signal.shape == (182919, 2))
 
+    def test_wave_channel_selection(self):
+        signal, sample_rate = load_audio_file(stereo_sample_file, channel=1)
+        self.assertTrue(signal.shape == (182919,))
+        self.assertTrue(np.allclose(signal[:4], [38, 36, 34, 31]))
+
     def test_start_stop(self):
         # test wave loader
         signal, sample_rate = load_audio_file(sample_file, start=1. / 44100,
@@ -216,7 +217,7 @@ class TestLoadAudioFileFunction(unittest.TestCase):
                                     [35, 35, 31, 33, 33]))
         self.assertTrue(len(signal) == 182919)
         self.assertTrue(sample_rate == 44100)
-        self.assertTrue(signal.shape == (182919, ))
+        self.assertTrue(signal.shape == (182919,))
         # test ffmpeg loader
         signal, sample_rate = load_audio_file(stereo_sample_file,
                                               num_channels=1)
@@ -263,6 +264,47 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         # avconv results in a different length of 91450 samples
         self.assertTrue(np.allclose(len(signal), 91460, atol=10))
 
+    def test_choose_channel(self):
+        signal, sample_rate = load_audio_file(flac_file,
+                                              sample_rate=22050,
+                                              num_channels=1, channel=0)
+        # avconv results in a different length of 91450 samples
+        self.assertTrue(np.allclose(len(signal), 91460, atol=10))
+        self.assertTrue(np.allclose(signal[:5], [34, 32, 37, 35, 32], atol=1))
+
+    def test_replaygain_disabled(self):
+        original = load_signal(flac_file)
+        signal = load_signal(rg_flac_file, replaygain_mode=None)
+        self.assertEqual(signal.spl(), original.spl())
+
+    def test_replaygain_track(self):
+        original = load_signal(flac_file)
+        data, sample_rate = load_audio_file(rg_flac_file,
+                                            replaygain_mode='track')
+        signal = Signal(data)
+        self.assertEqual(sample_rate, 44100)
+        # The FLAC file has an RG track gain of +8.39
+        self.assertAlmostEqual(signal.spl() - original.spl(), 8.39, places=3)
+
+    def test_replaygain_album(self):
+        original = load_signal(flac_file)
+        signal = load_signal(rg_flac_file, replaygain_mode='album')
+        # The FLAC file has an RG album gain of -8.12 (the other track is loud)
+        self.assertAlmostEqual(signal.spl() - original.spl(), -8.12, places=3)
+
+    def test_replaygain_preamp(self):
+        signal = load_signal(loud_rg_flac_file)
+        base_spl = signal.spl()
+        rg_sig = load_signal(loud_rg_flac_file, replaygain_mode='track')
+        # Remember, ffmpeg will limit gain to avoid clipping,
+        # so the SPL difference is non-obvious here.
+        self.assertTrue(base_spl > rg_sig.spl())
+        # Preamp on a file with track RG at -12.44 should happily go to -6.44dB
+        pre_rg_sig = load_signal(loud_rg_flac_file,
+                                 replaygain_mode='track',
+                                 replaygain_preamp=+6.0)
+        self.assertAlmostEqual(rg_sig.spl() + 6.0, pre_rg_sig.spl(), places=3)
+
     def test_errors(self):
         # file not found
         with self.assertRaises(IOError):
@@ -270,6 +312,39 @@ class TestLoadAudioFileFunction(unittest.TestCase):
         # not an audio file
         with self.assertRaises(LoadAudioFileError):
             load_audio_file(pj(DATA_PATH, 'README'))
+
+
+def load_signal(fn, *args, **kwargs):
+    return Signal(load_audio_file(fn, *args, **kwargs)[0])
+
+
+class TestDecodeToDisk(unittest.TestCase):
+    def test_write_to_temp(self):
+        outfile = decode_to_disk(stereo_sample_file, tmp_suffix='.raw')
+        self.assertTrue(os.path.exists(outfile))
+        self.assertGreater(os.stat(outfile).st_size, 100 * 1024)
+
+    def test_write_with_replaygain(self):
+        outfile = decode_to_disk(loud_rg_flac_file, tmp_suffix='.raw')
+        outfile_rg = decode_to_disk(loud_rg_flac_file, tmp_suffix='.raw',
+                                    replaygain_mode='track')
+        with open(outfile, 'rb') as f:
+            data = np.frombuffer(f.read(), dtype=np.int16).reshape((-1, 2))
+            orig_spl = Signal(data).spl()
+        with open(outfile_rg, 'rb') as f:
+            data = np.frombuffer(f.read(), dtype=np.int16).reshape((-1, 2))
+            adjusted_spl = Signal(data).spl()
+        self.assertGreater(orig_spl, adjusted_spl)
+
+
+class TestLoadAudioFromFileObject(unittest.TestCase):
+
+    def test_file_object(self):
+        for file_path in [sample_file, flac_file]:
+            disk_signal = Signal(file_path)
+            with open(file_path, 'rb') as file_handle:
+                memory_signal = Signal(io.BytesIO(file_handle.read()))
+            self.assertTrue((disk_signal == memory_signal).all)
 
 
 # clean up

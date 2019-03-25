@@ -24,7 +24,9 @@ AUDIO_FILES = [pj(AUDIO_PATH, 'sample.wav'),
                pj(AUDIO_PATH, 'sample2.wav'),
                pj(AUDIO_PATH, 'sample_22050.wav'),
                pj(AUDIO_PATH, 'stereo_chirp.wav'),
+               pj(AUDIO_PATH, 'stereo_chirp_rg.flac'),
                pj(AUDIO_PATH, 'stereo_sample.flac'),
+               pj(AUDIO_PATH, 'stereo_sample_rg.flac'),
                pj(AUDIO_PATH, 'stereo_sample.wav')]
 
 ACTIVATION_FILES = [pj(ACTIVATIONS_PATH, 'sample.bar_tracker.npz'),
@@ -59,6 +61,7 @@ ANNOTATION_FILES = [pj(ANNOTATIONS_PATH, 'dummy.chords'),
                     pj(ANNOTATIONS_PATH, 'stereo_sample.notes'),
                     pj(ANNOTATIONS_PATH, 'stereo_sample.notes.mirex'),
                     pj(ANNOTATIONS_PATH, 'stereo_sample.sv'),
+                    pj(ANNOTATIONS_PATH, 'stereo_sample_sustained.mid'),
                     pj(ANNOTATIONS_PATH, 'multitrack.mid'),
                     pj(ANNOTATIONS_PATH, 'piano_sample.mid'),
                     pj(ANNOTATIONS_PATH, 'piano_sample.notes_in_beats')]

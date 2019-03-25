@@ -98,7 +98,7 @@ def _score_decorator(perfect_score, zero_score):
         def score(detections, annotations, *args, **kwargs):
             """
             Return perfect/zero score if neither/either detections and
-            annotations are given, repsectively.
+            annotations are given, respectively.
 
             """
             # neither detections nor annotations are given, perfect score
@@ -982,7 +982,7 @@ class BeatEvaluation(OnsetEvaluation):
     continuity_phase_tolerance : float, optional
         Continuity phase tolerance.
     continuity_tempo_tolerance : float, optional
-        Ccontinuity tempo tolerance.
+        Continuity tempo tolerance.
     information_gain_bins : int, optional
         Number of bins for for the information gain beat error histogram.
     offbeat : bool, optional

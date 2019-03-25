@@ -2,3 +2,4 @@ prune docs
 prune tests
 include CHANGES.rst
 recursive-include madmom/ *.pyx
+recursive-exclude madmom/ *.c

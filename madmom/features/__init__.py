@@ -182,7 +182,13 @@ class Activations(np.ndarray):
             header = "FPS:%f" % self.fps
             np.savetxt(outfile, np.atleast_2d(self), fmt=fmt, delimiter=sep,
                        header=header)
-        outfile.close()
+        # TODO: check if closing the file is really the best option to avoid
+        #       fails in tests/test_bin.py
+        try:
+            outfile.close()
+        except AttributeError:
+            # a string filename cannot be closed
+            pass
 
 
 class ActivationsProcessor(Processor):

@@ -283,7 +283,7 @@ def write_notes(notes, filename, fmt=None, delimiter='\t', header=None):
         fmt = ['%.3f', '%d', '%.3f', '%d']
     if not notes.ndim == 2:
         raise ValueError('unknown format for `notes`')
-    # truncate format to the number of colums given
+    # truncate format to the number of columns given
     fmt = delimiter.join(fmt[:notes.shape[1]])
     # write the notes
     write_events(notes, filename, fmt=fmt, delimiter=delimiter, header=header)
