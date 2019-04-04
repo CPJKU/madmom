@@ -1400,7 +1400,7 @@ class Stream(object):
         import pyaudio
         # set attributes
         self.sample_rate = sample_rate
-        self.num_channels = 1 if None else num_channels
+        self.num_channels = 1 if num_channels is None else num_channels
         self.dtype = dtype
         if frame_size:
             self.frame_size = int(frame_size)
