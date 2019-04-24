@@ -1010,6 +1010,9 @@ class DBNBeatTrackingProcessor(OnlineProcessor):
             Detected beat position [seconds].
 
         """
+        # cast as 1-dimensional array
+        # Note: in online mode, activations are just float values
+        activations = np.array(activations, copy=False, subok=True, ndmin=1)
         # reset to initial state
         if reset:
             self.reset()

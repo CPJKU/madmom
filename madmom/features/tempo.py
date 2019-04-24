@@ -380,13 +380,17 @@ class CombFilterTempoHistogramProcessor(TempoHistogramProcessor):
             Corresponding delays [frames].
 
         """
+
+        activations = np.array(activations, copy=False, subok=True, ndmin=1)
         # reset to initial state
         if reset:
             self.reset()
         # indices at which to retrieve y[n - τ]
         idx = [-self.intervals, np.arange(len(self.intervals))]
         # iterate over all activations
-        for act in activations:
+        # Note: in online mode, activations are just float values, thus cast
+        #       them as 1-dimensional array
+        for act in np.array(activations, copy=False, subok=True, ndmin=1):
             # online feed backward comb filter (y[n] = x[n] + α * y[n - τ])
             y_n = act + self.alpha * self._comb_buffer[idx]
             # shift output buffer with new value

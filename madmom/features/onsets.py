@@ -1124,6 +1124,9 @@ class OnsetPeakPickingProcessor(OnlineProcessor):
             Detected onsets [seconds].
 
         """
+        # cast as 1-dimensional array
+        # Note: in online mode, activations are just float values
+        activations = np.array(activations, copy=False, subok=True, ndmin=1)
         # buffer data
         if self.buffer is None or reset:
             # reset the processor
