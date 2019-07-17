@@ -30,6 +30,7 @@ before_install:
   - hash -r
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
+  - conda config --add channels conda-forge
   - conda config --add channels pypi
   - conda info -a
   - deps='pip libgfortran cython numpy scipy pep8'
