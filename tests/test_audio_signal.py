@@ -340,7 +340,7 @@ class TestMixFunction(unittest.TestCase):
 
     def test_channel_selection(self):
         result = remix(sig_2d, 1, channel=0)
-        self.assertEquals(result.shape, sig_1d.shape)
+        self.assertEqual(result.shape, sig_1d.shape)
         self.assertTrue(np.array_equal(result, sig_1d))
         result = remix(sig_2d, 1, channel=1)
         self.assertTrue(np.array_equal(result, sig_2d[:, 1]), 0)
