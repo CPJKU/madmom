@@ -44,6 +44,8 @@ install:
   - conda config --set always_yes yes --set changeps1 no
   - conda update -q conda
   - conda config --add channels pypi
+  # activate the environment, fixes #439
+  - activate
   - conda info -a
   - "conda create -q -n test-environment python=%PYTHON_VERSION% pip cython numpy scipy"
   - activate test-environment
