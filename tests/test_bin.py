@@ -9,6 +9,7 @@ from __future__ import absolute_import, division, print_function
 
 import imp
 import os
+import shutil
 import sys
 import tempfile
 import unittest
@@ -24,10 +25,12 @@ import numpy as np
 from madmom.features import Activations
 from madmom.evaluation.key import load_key
 from madmom.io import load_chords, midi
+from madmom.utils import search_files
 
 from . import AUDIO_PATH, ACTIVATIONS_PATH, ANNOTATIONS_PATH, DETECTIONS_PATH
 
 tmp_act = tempfile.NamedTemporaryFile(delete=False).name
+tmp_dir = tempfile.mkdtemp()
 tmp_result = tempfile.NamedTemporaryFile(delete=False).name
 sample_file = pj(AUDIO_PATH, 'sample.wav')
 sample2_file = pj(AUDIO_PATH, 'sample2.wav')
@@ -59,7 +62,7 @@ def run_batch(program, infiles, outdir=None, args=None):
     argv = [program]
     if args:
         argv.extend(args)
-    argv.extend(['batch', '-j', '1'])
+    argv.extend(['batch', '-j', '1', '--shuffle'])
     argv.extend(infiles)
     if outdir:
         argv.extend(['-o', outdir])
@@ -941,6 +944,16 @@ class TestSuperFluxProgram(unittest.TestCase):
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
+    # TODO: investigate why this fails on Windows
+    @unittest.skipIf(sys.platform.startswith('win'), "fails on Windows")
+    def test_batch(self):
+        # test in batch mode with a given output directory
+        run_batch(self.bin, [sample_file, sample_beats, sample2_file],
+                  outdir=tmp_dir)
+        result = search_files(tmp_dir)
+        # result should contain 2 results for the given audio files
+        self.assertEqual(len(result), 2)
+
 
 class TestSuperFluxNNProgram(unittest.TestCase):
 
@@ -1045,3 +1058,4 @@ class TestTempoDetectorProgram(unittest.TestCase):
 def teardown_module():
     os.unlink(tmp_act)
     os.unlink(tmp_result)
+    shutil.rmtree(tmp_dir)
