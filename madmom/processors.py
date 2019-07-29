@@ -22,6 +22,7 @@ import os
 import sys
 from collections import MutableSequence
 
+import madmom
 import numpy as np
 
 from .utils import integer_types
@@ -619,7 +620,7 @@ class _ParallelProcess(mp.Process):
 
     def run(self):
         """Process all tasks from the task queue."""
-        from .audio.signal import LoadAudioFileError
+        from .io.audio import LoadAudioFileError
         while True:
             # get the task tuple
             processor, infile, outfile, kwargs = self.task_queue.get()
@@ -628,8 +629,9 @@ class _ParallelProcess(mp.Process):
                 _process((processor, infile, outfile, kwargs))
             except LoadAudioFileError as e:
                 print(e)
-            # signal that it is done
-            self.task_queue.task_done()
+            finally:
+                # signal that it is done
+                self.task_queue.task_done()
 
 
 # function to batch process multiple files with a processor
