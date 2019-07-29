@@ -48,7 +48,8 @@ ACTIVATION_FILES = [pj(ACTIVATIONS_PATH, 'sample.bar_tracker.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.super_flux_nn.npz'),
                     pj(ACTIVATIONS_PATH, 'sample2.cnn_chord_features.npz'),
                     pj(ACTIVATIONS_PATH, 'sample2.deep_chroma.npz'),
-                    pj(ACTIVATIONS_PATH, 'stereo_sample.notes_brnn.npz')]
+                    pj(ACTIVATIONS_PATH, 'stereo_sample.notes_brnn.npz'),
+                    pj(ACTIVATIONS_PATH, 'stereo_sample.notes_cnn.npz')]
 
 ANNOTATION_FILES = [pj(ANNOTATIONS_PATH, 'dummy.chords'),
                     pj(ANNOTATIONS_PATH, 'sample.beats'),
