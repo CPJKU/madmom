@@ -118,6 +118,7 @@ def run_help(program):
 
 
 class TestBarTrackerProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "BarTracker")
         self.act = np.load(pj(ACTIVATIONS_PATH, 'sample.bar_tracker.npz'))
@@ -168,6 +169,7 @@ class TestBarTrackerProgram(unittest.TestCase):
 
 
 class TestBeatDetectorProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "BeatDetector")
         self.activations = Activations(
@@ -206,6 +208,7 @@ class TestBeatDetectorProgram(unittest.TestCase):
 
 
 class TestBeatTrackerProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "BeatTracker")
         self.activations = Activations(
@@ -244,6 +247,7 @@ class TestBeatTrackerProgram(unittest.TestCase):
 
 
 class TestCNNChordRecognition(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "CNNChordRecognition")
         self.activations = [
@@ -295,6 +299,7 @@ class TestCNNChordRecognition(unittest.TestCase):
 
 
 class TestComplexFluxProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "ComplexFlux")
         self.activations = Activations(
@@ -333,6 +338,7 @@ class TestComplexFluxProgram(unittest.TestCase):
 
 
 class TestCNNOnsetDetectorProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "CNNOnsetDetector")
         self.activations = Activations(
@@ -371,6 +377,7 @@ class TestCNNOnsetDetectorProgram(unittest.TestCase):
 
 
 class TestCRFBeatDetectorProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "CRFBeatDetector")
         self.activations = Activations(
@@ -409,6 +416,7 @@ class TestCRFBeatDetectorProgram(unittest.TestCase):
 
 
 class TestDBNBeatTrackerProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "DBNBeatTracker")
         self.activations = Activations(
@@ -456,6 +464,7 @@ class TestDBNBeatTrackerProgram(unittest.TestCase):
 
 
 class TestDBNDownBeatTrackerProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "DBNDownBeatTracker")
         self.activations = Activations(
@@ -500,6 +509,7 @@ class TestDBNDownBeatTrackerProgram(unittest.TestCase):
 
 
 class TestDCChordRecognition(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "DCChordRecognition")
         self.activations = [
@@ -550,6 +560,7 @@ class TestDCChordRecognition(unittest.TestCase):
 
 
 class TestKeyRecognitionProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, 'KeyRecognition')
         self.activations = [
@@ -595,6 +606,7 @@ class TestKeyRecognitionProgram(unittest.TestCase):
 
 
 class TestGMMPatternTrackerProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "GMMPatternTracker")
         self.activations = Activations(
@@ -639,6 +651,7 @@ class TestGMMPatternTrackerProgram(unittest.TestCase):
 
 
 class TestLogFiltSpecFluxProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "LogFiltSpecFlux")
         self.activations = Activations(
@@ -677,6 +690,7 @@ class TestLogFiltSpecFluxProgram(unittest.TestCase):
 
 
 class TestMMBeatTrackerProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "MMBeatTracker")
         self.activations = Activations(
@@ -715,6 +729,7 @@ class TestMMBeatTrackerProgram(unittest.TestCase):
 
 
 class TestOnsetDetectorProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "OnsetDetector")
         self.activations = Activations(
@@ -753,6 +768,7 @@ class TestOnsetDetectorProgram(unittest.TestCase):
 
 
 class TestOnsetDetectorLLProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "OnsetDetectorLL")
         self.activations = Activations(
@@ -806,10 +822,11 @@ class TestOnsetDetectorLLProgram(unittest.TestCase):
 
 
 class TestPianoTranscriptorProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "PianoTranscriptor")
         self.activations = Activations(
-            pj(ACTIVATIONS_PATH, "stereo_sample.notes_brnn.npz"))
+            pj(ACTIVATIONS_PATH, "stereo_sample.notes_cnn.npz"))
         self.result = np.loadtxt(
             pj(DETECTIONS_PATH, "stereo_sample.piano_transcriptor.txt"))
 
@@ -827,16 +844,6 @@ class TestPianoTranscriptorProgram(unittest.TestCase):
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
-    def test_txt(self):
-        # save activations as txt file
-        run_save(self.bin, stereo_sample_file, tmp_act, args=['--sep', ' '])
-        act = Activations(tmp_act, sep=' ', fps=100)
-        self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
-        # reload from file
-        run_load(self.bin, tmp_act, tmp_result, args=['--sep', ' '])
-        result = np.loadtxt(tmp_result)
-        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
-
     def test_run(self):
         run_single(self.bin, stereo_sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
@@ -845,16 +852,20 @@ class TestPianoTranscriptorProgram(unittest.TestCase):
     def test_midi(self):
         run_single(self.bin, stereo_sample_file, tmp_result, args=['--midi'])
         result = midi.MIDIFile(tmp_result).notes
-        self.assertTrue(np.allclose(result[:, :2], self.result, atol=1e-3))
+        self.assertTrue(np.allclose(result[:, :3], self.result, atol=1e-3))
 
     def test_mirex(self):
         run_single(self.bin, stereo_sample_file, tmp_result, args=['--mirex'])
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result[:, 0], self.result[:, 0]))
-        self.assertTrue(np.allclose(result[:, 2], [523.3, 87.3, 698.5, 622.3]))
+        self.assertTrue(np.allclose(
+            result[:, 1], [2.48, 3.36, 3.50, 3.36, 3.36, 4.16, 4.16]))
+        self.assertTrue(np.allclose(
+            result[:, 2], [523.25, 87.31, 698.46, 349.23, 207.65, 622.25, 98]))
 
 
 class TestSpectralOnsetDetectionProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "SpectralOnsetDetection")
         self.activations = Activations(
@@ -893,6 +904,7 @@ class TestSpectralOnsetDetectionProgram(unittest.TestCase):
 
 
 class TestSuperFluxProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "SuperFlux")
         self.activations = Activations(
@@ -930,6 +942,7 @@ class TestSuperFluxProgram(unittest.TestCase):
 
 
 class TestSuperFluxNNProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "SuperFluxNN")
         self.activations = Activations(
@@ -968,6 +981,7 @@ class TestSuperFluxNNProgram(unittest.TestCase):
 
 
 class TestTempoDetectorProgram(unittest.TestCase):
+
     def setUp(self):
         self.bin = pj(program_path, "TempoDetector")
         self.activations = Activations(
