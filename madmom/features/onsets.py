@@ -964,59 +964,6 @@ def peak_picking(activations, threshold, smooth=None, pre_avg=0, post_avg=0,
         raise ValueError('`activations` must be either 1D or 2D')
 
 
-class PeakPickingProcessor(Processor):
-    """
-    Deprecated as of version 0.15. Will be removed in version 0.16. Use either
-    :class:`OnsetPeakPickingProcessor` or :class:`NotePeakPickingProcessor`
-    instead.
-
-    """
-
-    def __init__(self, **kwargs):
-        # pylint: disable=unused-argument
-        self.kwargs = kwargs
-
-    def process(self, activations, **kwargs):
-        """
-        Detect the peaks in the given activation function.
-
-        Parameters
-        ----------
-        activations : numpy array
-            Onset activation function.
-
-        Returns
-        -------
-        peaks : numpy array
-            Detected onsets [seconds[, frequency bin]].
-
-        """
-        import warnings
-        if activations.ndim == 1:
-            warnings.warn('`PeakPickingProcessor` is deprecated as of version '
-                          '0.15 and will be removed in version 0.16. Use '
-                          '`OnsetPeakPickingProcessor` instead.')
-            ppp = OnsetPeakPickingProcessor(**self.kwargs)
-            return ppp(activations, **kwargs)
-        elif activations.ndim == 2:
-            warnings.warn('`PeakPickingProcessor` is deprecated as of version '
-                          '0.15 and will be removed in version 0.16. Use '
-                          '`NotePeakPickingProcessor` instead.')
-            from .notes import NotePeakPickingProcessor
-            ppp = NotePeakPickingProcessor(**self.kwargs)
-            return ppp(activations, **kwargs)
-
-    @staticmethod
-    def add_arguments(parser, **kwargs):
-        """
-        Deprecated as of version 0.15. Will be removed in version 0.16. Use
-        either :class:`OnsetPeakPickingProcessor` or
-        :class:`NotePeakPickingProcessor` instead.
-
-        """
-        return OnsetPeakPickingProcessor.add_arguments(parser, **kwargs)
-
-
 class OnsetPeakPickingProcessor(OnlineProcessor):
     """
     This class implements the onset peak-picking functionality.
