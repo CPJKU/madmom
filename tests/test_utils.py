@@ -26,6 +26,7 @@ AUDIO_FILES = [pj(AUDIO_PATH, 'sample.wav'),
                pj(AUDIO_PATH, 'stereo_chirp.wav'),
                pj(AUDIO_PATH, 'stereo_chirp_rg.flac'),
                pj(AUDIO_PATH, 'stereo_sample.flac'),
+               pj(AUDIO_PATH, 'stereo_sample.m4a'),
                pj(AUDIO_PATH, 'stereo_sample_rg.flac'),
                pj(AUDIO_PATH, 'stereo_sample.wav')]
 
