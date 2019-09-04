@@ -1396,6 +1396,8 @@ class Stream(object):
     fps : float, optional
         Use given frames per second; if set, this computes and overwrites the
         given `hop_size` value (the resulting `hop_size` must be an integer).
+    stream_input_device : int, optional
+        PyAudio device index of the desired input device.
     queue_size : int
         Size of the FIFO (first in first out) queue. If the queue is full and
         new audio samples arrive, the oldest item in the queue will be dropped.
@@ -1409,7 +1411,7 @@ class Stream(object):
 
     def __init__(self, sample_rate=SAMPLE_RATE, num_channels=NUM_CHANNELS,
                  dtype=np.float32, frame_size=FRAME_SIZE, hop_size=HOP_SIZE,
-                 fps=FPS, **kwargs):
+                 fps=FPS, stream_input_device=None, **kwargs):
         # import PyAudio here and not at the module level
         import pyaudio
         # set attributes
@@ -1425,6 +1427,7 @@ class Stream(object):
             raise ValueError(
                 'only integer `hop_size` supported, not %s' % hop_size)
         self.hop_size = int(hop_size)
+        self.stream_input_device = stream_input_device
         # init PyAudio
         self.pa = pyaudio.PyAudio()
         # init a stream to read audio samples from
@@ -1432,6 +1435,7 @@ class Stream(object):
                                    channels=self.num_channels,
                                    format=pyaudio.paFloat32, input=True,
                                    frames_per_buffer=self.hop_size,
+                                   input_device_index=self.stream_input_device,
                                    start=True)
         # create a buffer
         self.buffer = BufferProcessor(self.frame_size)

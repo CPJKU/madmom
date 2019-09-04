@@ -999,6 +999,10 @@ def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
                         default=output, help='output file [default: STDOUT]')
         sp.add_argument('-j', dest='num_threads', type=int, default=1,
                         help='number of threads [default=%(default)s]')
+        sp.add_argument('--device', dest='stream_input_device', type=int,
+                        default=None, help='PyAudio device index of the '
+                                           'desired input device. '
+                                           '[default=%(default)s]')
         # set arguments for loading processors
         sp.set_defaults(online=True)      # use online settings/parameters
         sp.set_defaults(num_frames=1)     # process everything frame-by-frame
