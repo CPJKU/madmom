@@ -95,7 +95,7 @@ class TestEvaluateScript(unittest.TestCase):
         # second line contains the summed results
         sum_res = np.fromiter(res[1].split(',')[1:], dtype=np.float)
         self.assertTrue(
-            np.allclose(sum_res, [7, 0, 0, 1, 8, 1, 0.875, 0.933, 0.875]))
+            np.allclose(sum_res, [8, 0, 0, 0, 8, 1, 1, 1, 1]))
         # third line contains the mean results
         mean_res = np.fromiter(res[2].split(',')[1:], dtype=np.float)
         self.assertTrue(np.allclose(mean_res, sum_res))

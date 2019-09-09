@@ -859,9 +859,10 @@ class TestPianoTranscriptorProgram(unittest.TestCase):
         result = np.loadtxt(tmp_result)
         self.assertTrue(np.allclose(result[:, 0], self.result[:, 0]))
         self.assertTrue(np.allclose(
-            result[:, 1], [2.48, 3.36, 3.50, 3.36, 3.36, 4.16, 4.16]))
+            result[:, 1], [1.56, 3.38, 3.5, 3.48, 3.36, 3.4, 4.16, 4.16]))
         self.assertTrue(np.allclose(
-            result[:, 2], [523.25, 87.31, 698.46, 349.23, 207.65, 622.25, 98]))
+            result[:, 2], [523.25, 87.31, 698.46, 349.23, 261.63, 207.65,
+                           622.25, 98]))
 
 
 class TestSpectralOnsetDetectionProgram(unittest.TestCase):

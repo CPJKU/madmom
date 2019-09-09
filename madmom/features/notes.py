@@ -273,20 +273,20 @@ class CNNPianoNoteProcessor(SequentialProcessor):
     Sounding notes,
 
     >>> act[..., 0]  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
-    array([[0.     , 0.     , ..., 0.     , 0.     ],
-           [0.     , 0.     , ..., 0.     , 0.     ],
-           ...,
-           [0.     , 0.     , ..., 0.     , 0.     ],
-           [0.     , 0.00001, ..., 0.     , 0.00001]], dtype=float32)
-
-    and onset activations.
-
-    >>> act[..., 1]  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     array([[0., 0., ..., 0., 0.],
            [0., 0., ..., 0., 0.],
            ...,
            [0., 0., ..., 0., 0.],
            [0., 0., ..., 0., 0.]], dtype=float32)
+
+    and onset activations.
+
+    >>> act[..., 1]  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    array([[0.     , 0.00001, ..., 0.     , 0.     ],
+           [0.     , 0.00002, ..., 0.     , 0.     ],
+           ...,
+           [0.     , 0.     , ..., 0.     , 0.     ],
+           [0.     , 0.     , ..., 0.     , 0.     ]], dtype=float32)
 
     """
 
@@ -302,7 +302,7 @@ class CNNPianoNoteProcessor(SequentialProcessor):
         frames = FramedSignalProcessor(frame_size=4096, fps=50)
         stft = ShortTimeFourierTransformProcessor()  # caching FFT window
         filt = FilteredSpectrogramProcessor(num_bands=24, fmin=30, fmax=10000)
-        spec = LogarithmicSpectrogramProcessor(add=1e-6)
+        spec = LogarithmicSpectrogramProcessor(add=1)
         # pre-processes everything sequentially
         pre_processor = SequentialProcessor(
             (sig, frames, stft, filt, spec, _cnn_pad))
@@ -362,13 +362,14 @@ class ADSRNoteTrackingProcessor(Processor):
     Track the notes by means on ADSR note tracking:
     >>> adsr = ADSRNoteTrackingProcessor()
     >>> adsr(act)  # doctest: +NORMALIZE_WHITESPACE
-    array([[ 0.12, 72.  ,  2.36],
-           [ 1.54, 41.  ,  1.82],
-           [ 2.5 , 77.  ,  1.  ],
-           [ 2.52, 65.  ,  0.84],
-           [ 2.58, 56.  ,  0.78],
-           [ 3.34, 75.  ,  0.82],
-           [ 3.42, 43.  ,  0.74]])
+    array([[ 0.12, 72. , 1.44],
+           [ 1.54, 41. , 1.84],
+           [ 2.5 , 77. , 1.  ],
+           [ 2.52, 65. , 0.96],
+           [ 2.54, 60. , 0.82],
+           [ 2.58, 56. , 0.82],
+           [ 3.34, 75. , 0.82],
+           [ 3.42, 43. , 0.74]])
     """
 
     def __init__(self, onset_prob=0.8, note_prob=0.8, offset_prob=0.5,

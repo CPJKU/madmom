@@ -75,11 +75,11 @@ class TestADSRNoteTrackingProcessorClass(unittest.TestCase):
     def test_process(self):
         notes = self.processor(sample_act_cnn)
         self.assertTrue(np.allclose(notes, sample_det))
-        self.assertTrue(np.allclose(notes.shape, (7, 3)))
+        self.assertTrue(np.allclose(notes.shape, (8, 3)))
         # do not enforce complete notes (same result, though)
         self.processor.complete = False
         notes = self.processor(sample_act_cnn)
-        self.assertTrue(np.allclose(notes.shape, (7, 3)))
+        self.assertTrue(np.allclose(notes.shape, (8, 3)))
         # try various thresholds
         self.processor.onset_threshold = 0.75
         notes = self.processor(sample_act_cnn)
