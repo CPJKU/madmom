@@ -6,6 +6,7 @@ Version 0.17.dev0
 
 New features:
 
+* ICASSP 2019 ADSR Piano Note Transcription (#445)
 * Volume changes according to `ReplayGain` tags can be applied (#400)
 
 Bug fixes:

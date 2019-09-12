@@ -125,6 +125,15 @@ class TestLoadNotesFunction(unittest.TestCase):
         self.assertTrue(np.allclose(annotations, ANNOTATIONS))
 
 
+class TestWriteNotesFunction(unittest.TestCase):
+
+    def test_values(self):
+        from tests.test_evaluation_notes import ANNOTATIONS
+        header = "MIDI notes for the stereo_sample.[flac|wav] file"
+        write_notes(ANNOTATIONS,
+                    pj(ANNOTATIONS_PATH, 'stereo_sample.notes'), header=header)
+
+
 class TestLoadOnsetsFunction(unittest.TestCase):
 
     def test_load_onsets(self):
