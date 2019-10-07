@@ -55,6 +55,139 @@ class Layer(object):
         return None
 
 
+class SequentialLayer(Layer):
+    """
+    SequentialLayer.
+
+    Parameters
+    ----------
+    layers : list
+        Activate these layers sequentially.
+
+    """
+
+    def __init__(self, layers):
+        self.layers = layers
+
+    def activate(self, data, **kwargs):
+        """
+        Activate all layers with the data sequentially.
+
+        Parameters
+        ----------
+        data : numpy arrays
+            Data with shape according to the first layer's input shape.
+
+        Returns
+        -------
+        data : numpy array
+            Activated data with shape according to the last layer's output
+            shape.
+
+        Notes
+        -----
+        The output of the first layer is fed into the second layer. The last
+        layer's output is returned.
+
+        """
+        # sequentially process the data
+        for layer in self.layers:
+            data = layer(data, **kwargs)
+        return data
+
+
+class ParallelLayer(Layer):
+    """
+    ParallelLayer.
+
+    Parameters
+    ----------
+    layers : list
+        Activate these layers in parallel.
+
+    """
+
+    def __init__(self, layers):
+        self.layers = layers
+
+    def activate(self, data, **kwargs):
+        """
+        Activate the data with the defined layers in parallel.
+
+        All layers are activated with the same input data.
+
+        Parameters
+        ----------
+        data : numpy arrays
+            Data with shape according to the layer's common input shape.
+
+        Returns
+        -------
+        data : list
+            List with activated data, dimensions according to each layer's
+            output shape.
+
+        """
+        # process the data with each layer in parallel
+        results = []
+        for layer in self.layers:
+            results.append(layer(data, **kwargs))
+        return results
+
+
+class MultiTaskLayer(Layer):
+    """
+    MultiTaskLayer.
+
+    Parameters
+    ----------
+    layers : list
+        Activate these layers individually.
+    mapping : dict, optional
+        Dict mapping layer indices to (input) data indices, i.e. which layer to
+        activate with which input.
+
+    """
+
+    def __init__(self, layers, mapping=None):
+        self.layers = layers
+        self.mapping = mapping
+
+    def activate(self, data, **kwargs):
+        """
+        Activate the defined layers with the data individually.
+
+        Parameters
+        ----------
+        data : tuple or list
+            Data tuple/list with numpy arrays, with shapes according to each
+            layer's input shape.
+
+        Returns
+        -------
+        data : tuple
+            Tuple with activated data, dimensions according to each layer's
+            output shape.
+
+        Notes
+        -----
+        All layers are activated with the data at the respective position, i.e.
+        the first layer with the first element of the data tuple and so on.
+
+        """
+        result = []
+        # process (multiple) inputs with (multiple) outputs
+        for i, layer in enumerate(self.layers):
+            # if mapping is not defined, use a 1:1 mapping
+            if self.mapping is None:
+                m = i
+            else:
+                m = self.mapping[i]
+            # activate layer with selected input data
+            result.append(layer(data[m]))
+        return tuple(result)
+
+
 class FeedForwardLayer(Layer):
     """
     Feed-forward network layer.
