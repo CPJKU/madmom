@@ -12,7 +12,7 @@ from __future__ import absolute_import, division, print_function
 
 import numpy as np
 
-from .activations import linear, sigmoid, tanh
+from .activations import sigmoid, tanh
 
 NN_DTYPE = np.float32
 
@@ -67,14 +67,14 @@ class FeedForwardLayer(Layer):
 
     """
 
-    def __init__(self, weights, bias, activation_fn):
+    def __init__(self, weights, bias, activation_fn=None):
         self.weights = weights
         self.bias = bias.flatten()
         self.activation_fn = activation_fn
 
     def activate(self, data, **kwargs):
         """
-        Activate the layer.
+        Activate FeedForwardLayer.
 
         Parameters
         ----------
@@ -89,7 +89,9 @@ class FeedForwardLayer(Layer):
         """
         # weight input, add bias and apply activations function
         out = np.dot(data, self.weights) + self.bias
-        return self.activation_fn(out)
+        if self.activation_fn is not None:
+            self.activation_fn(out, out=out)
+        return out
 
 
 class RecurrentLayer(FeedForwardLayer):
@@ -104,14 +106,14 @@ class RecurrentLayer(FeedForwardLayer):
         Bias.
     recurrent_weights : numpy array, shape (num_hiddens, num_hiddens)
         Recurrent weights.
-    activation_fn : numpy ufunc
+    activation_fn : numpy ufunc, optional
         Activation function.
     init : numpy array, shape (num_hiddens,), optional
         Initial state of hidden units.
 
     """
 
-    def __init__(self, weights, bias, recurrent_weights, activation_fn,
+    def __init__(self, weights, bias, recurrent_weights, activation_fn=tanh,
                  init=None):
         super(RecurrentLayer, self).__init__(weights, bias, activation_fn)
         self.recurrent_weights = recurrent_weights
@@ -140,7 +142,7 @@ class RecurrentLayer(FeedForwardLayer):
 
     def reset(self, init=None):
         """
-        Reset the layer to its initial state.
+        Reset RecurrentLayer to its initial state.
 
         Parameters
         ----------
@@ -153,7 +155,7 @@ class RecurrentLayer(FeedForwardLayer):
 
     def activate(self, data, reset=True):
         """
-        Activate the layer.
+        Activate RecurrentLayer.
 
         Parameters
         ----------
@@ -178,7 +180,8 @@ class RecurrentLayer(FeedForwardLayer):
             # add weighted previous step
             out[i] += np.dot(self._prev, self.recurrent_weights)
             # apply activation function
-            out[i] = self.activation_fn(out[i])
+            if self.activation_fn is not None:
+                out[i] = self.activation_fn(out[i])
             # set reference to current output
             self._prev = out[i]
         # return
@@ -204,7 +207,7 @@ class BidirectionalLayer(Layer):
 
     def activate(self, data, **kwargs):
         """
-        Activate the layer.
+        Activate BidirectionalLayer.
 
         After activating the `fwd_layer` with the data and the `bwd_layer` with
         the data in reverse temporal order, the two activations are stacked and
@@ -263,7 +266,7 @@ class Gate(RecurrentLayer):
 
     def activate(self, data, prev, state=None):
         """
-        Activate the gate with the given data, state (if peephole connections
+        Activate gate with the given data, state (if peephole connections
         are used) and the previous output (if recurrent connections are used).
 
         Parameters
@@ -383,7 +386,7 @@ class LSTMLayer(RecurrentLayer):
 
     def reset(self, init=None, cell_init=None):
         """
-        Reset the layer to its initial state.
+        Reset LSTMLayer to its initial state.
 
         Parameters
         ----------
@@ -399,7 +402,7 @@ class LSTMLayer(RecurrentLayer):
 
     def activate(self, data, reset=True):
         """
-        Activate the LSTM layer.
+        Activate LSTMLayer.
 
         Parameters
         ----------
@@ -491,7 +494,7 @@ class GRUCell(Cell):
 
     def activate(self, data, prev, reset_gate):
         """
-        Activate the cell with the given input, previous output and reset gate.
+        Activate GRU cell with the given input, previous output and reset gate.
 
         Parameters
         ----------
@@ -755,13 +758,13 @@ class ConvolutionalLayer(FeedForwardLayer):
             The output is the same size as the input, centered with respect to
             the ‘full’ output.
 
-    activation_fn : numpy ufunc
+    activation_fn : numpy ufunc, optional
         Activation function.
 
     """
 
     def __init__(self, weights, bias, stride=1, pad='valid',
-                 activation_fn=linear):
+                 activation_fn=None):
         super(ConvolutionalLayer, self).__init__(weights, bias, activation_fn)
         if stride != 1:
             raise NotImplementedError('only `stride` == 1 implemented.')
@@ -772,16 +775,16 @@ class ConvolutionalLayer(FeedForwardLayer):
 
     def activate(self, data, **kwargs):
         """
-        Activate the layer.
+        Activate ConvolutionalLayer.
 
         Parameters
         ----------
-        data : numpy array (num_frames, num_bins, num_channels)
+        data : numpy array, shape (num_frames, num_bins, num_channels)
             Activate with this data.
 
         Returns
         -------
-        numpy array
+        numpy array, shape (num_frames, num_bins, num_features)
             Activations for this data.
 
         """
@@ -810,7 +813,10 @@ class ConvolutionalLayer(FeedForwardLayer):
                 conv = convolve(channel, weights)
                 out[:, :, w] += conv
         # add bias to each feature map and apply activation function
-        return self.activation_fn(out + self.bias)
+        out += self.bias
+        if self.activation_fn is not None:
+            self.activation_fn(out, out=out)
+        return out
 
 
 class StrideLayer(Layer):
@@ -829,7 +835,7 @@ class StrideLayer(Layer):
 
     def activate(self, data, **kwargs):
         """
-        Activate the layer.
+        Activate StrideLayer.
 
         Parameters
         ----------
@@ -858,23 +864,24 @@ class MaxPoolLayer(Layer):
         The size of the pooling region in each dimension.
     stride : tuple, optional
         The strides between successive pooling regions in each dimension.
-        If None `stride` = `size`.
+        If 'None' `stride` = `size`.
 
     """
 
-    def __init__(self, size, stride=None):
+    def __init__(self, size, stride=None, pad='valid'):
         self.size = size
         if stride is None:
             stride = size
         self.stride = stride
+        self.pad = pad
 
     def activate(self, data, **kwargs):
         """
-        Activate the layer.
+        Activate MaxPoolLayer.
 
         Parameters
         ----------
-        data : numpy array
+        data : numpy array, shape (num_frames, num_bins[, num_channels])
             Activate with this data.
 
         Returns
@@ -888,10 +895,17 @@ class MaxPoolLayer(Layer):
         slice_dim_1 = slice(self.size[0] // 2, None, self.stride[0])
         slice_dim_2 = slice(self.size[1] // 2, None, self.stride[1])
         # TODO: is constant mode the most appropriate?
-        data = [maximum_filter(data[:, :, c], self.size, mode='constant')
-                [slice_dim_1, slice_dim_2] for c in range(data.shape[2])]
-        # join channels and return as array
-        return np.dstack(data)
+        if len(data.shape) == 2:
+            # filter the data as is
+            return maximum_filter(data, self.size, mode='constant')
+        elif len(data.shape) == 3:
+            # filter each channel separately
+            data = [maximum_filter(data[:, :, c], self.size, mode='constant')
+                    [slice_dim_1, slice_dim_2] for c in range(data.shape[2])]
+            # join channels and return as array
+            return np.dstack(data)
+        else:
+            ValueError('`data` must bei either 2 or 3-dimensional')
 
 
 class BatchNormLayer(Layer):
@@ -914,7 +928,7 @@ class BatchNormLayer(Layer):
     inv_std : numpy array
         Inverse standard deviation of incoming data. Must be broadcastable to
         the incoming shape.
-    activation_fn : numpy ufunc
+    activation_fn : numpy ufunc, optional
         Activation function.
 
     References
@@ -926,7 +940,7 @@ class BatchNormLayer(Layer):
 
     """
 
-    def __init__(self, beta, gamma, mean, inv_std, activation_fn):
+    def __init__(self, beta, gamma, mean, inv_std, activation_fn=None):
         self.beta = beta
         self.gamma = gamma
         self.mean = mean
@@ -935,7 +949,7 @@ class BatchNormLayer(Layer):
 
     def activate(self, data, **kwargs):
         """
-        Activate the layer.
+        Activate BatchNormLayer.
 
         Parameters
         ----------
@@ -948,9 +962,10 @@ class BatchNormLayer(Layer):
             Normalized data.
 
         """
-        return self.activation_fn(
-            (data - self.mean) * (self.gamma * self.inv_std) + self.beta
-        )
+        out = (data - self.mean) * (self.gamma * self.inv_std) + self.beta
+        if self.activation_fn is not None:
+            self.activation_fn(out, out=out)
+        return out
 
 
 class TransposeLayer(Layer):
@@ -970,7 +985,7 @@ class TransposeLayer(Layer):
 
     def activate(self, data, **kwargs):
         """
-        Activate the layer.
+        Activate TransposeLayer.
 
         Parameters
         ----------
@@ -1008,7 +1023,7 @@ class ReshapeLayer(Layer):
 
     def activate(self, data, **kwargs):
         """
-        Activate the layer.
+        Activate ReshapeLayer.
 
         Parameters
         ----------
@@ -1034,7 +1049,7 @@ class AverageLayer(Layer):
         Axis or axes along which the means are computed. The default is to
         compute the mean of the flattened array.
     dtype : data-type, optional
-        Type to use in computing the mean.  For integer inputs, the default
+        Type to use in computing the mean. For integer inputs, the default
         is `float64`; for floating point inputs, it is the same as the
         input dtype.
     keepdims : bool, optional
@@ -1050,7 +1065,7 @@ class AverageLayer(Layer):
 
     def activate(self, data, **kwargs):
         """
-        Activate the layer.
+        Activate AverageLayer.
 
         Parameters
         ----------
@@ -1089,7 +1104,7 @@ class PadLayer(Layer):
 
     def activate(self, data, **kwargs):
         """
-        Activate the layer.
+        Activate PadLayer.
 
         Parameters
         ----------
