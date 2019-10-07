@@ -20,8 +20,8 @@ from madmom.ml.hmm import HiddenMarkovModel
 sample_file = pj(AUDIO_PATH, "sample.wav")
 sample_lstm_act = Activations(pj(ACTIVATIONS_PATH, "sample.beats_lstm.npz"))
 sample_blstm_act = Activations(pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
-sample_downbeat_act = Activations(pj(ACTIVATIONS_PATH,
-                                     "sample.downbeats_blstm.npz"))
+sample_tcn_act = Activations(pj(ACTIVATIONS_PATH,
+                                "sample.beats_tcn_beats.npz"))
 sample_pattern_features = Activations(pj(ACTIVATIONS_PATH,
                                          "sample.gmm_pattern_tracker.npz"))
 
@@ -54,6 +54,16 @@ class TestRNNBeatProcessorClass(unittest.TestCase):
         # result must be different without resetting
         result_3 = np.hstack([self.processor(f, reset=False) for f in frames])
         self.assertFalse(np.allclose(result, result_3))
+
+
+class TestTCNBeatProcessorClass(unittest.TestCase):
+
+    def setUp(self):
+        self.processor = TCNBeatProcessor()
+
+    def test_process_tcn(self):
+        beat_act = self.processor(sample_file)
+        self.assertTrue(np.allclose(beat_act, sample_tcn_act, atol=1e-5))
 
 
 class TestBeatTrackingProcessorClass(unittest.TestCase):

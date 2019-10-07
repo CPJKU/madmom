@@ -19,7 +19,7 @@ from ..processors import (OnlineProcessor, ParallelProcessor, Processor,
                           SequentialProcessor)
 
 
-# classes for tracking (down-)beats with RNNs
+# classes for tracking beats with neural networks
 class RNNBeatProcessor(SequentialProcessor):
     """
     Processor to get a beat activation function from multiple RNNs.
@@ -110,6 +110,76 @@ class RNNBeatProcessor(SequentialProcessor):
                                         ensemble_fn=post_processor, **kwargs)
         # instantiate a SequentialProcessor
         super(RNNBeatProcessor, self).__init__((pre_processor, nn))
+
+
+# must be a top-level function to be pickle-able
+def _tcn_beat_processor_pad(data):
+    """Pad the data by repeating the first and last frame 2 times."""
+    pad_start = np.repeat(data[:1], 2, axis=0)
+    pad_stop = np.repeat(data[-1:], 2, axis=0)
+    return np.concatenate((pad_start, data, pad_stop))
+
+
+class TCNBeatProcessor(SequentialProcessor):
+    """
+    Processor to get a beat activation function (and/or tempo histogram) from
+    temporal convolutional networks (TCNs).
+
+    Parameters
+    ----------
+    nn_files : list, optional
+        List with trained TCN model files. Per default ('None'), an ensemble
+        of networks will be used.
+    tasks : tuple, optional
+        Which tasks modeled by the TCN to return.
+
+    Notes
+    -----
+    If `tasks` contains more than one element (i.e. more tasks are tackled at
+    the same time) a tuple is returned, otherwise a numpy array.
+
+    References
+    ----------
+    .. [1] Matthew Davies and Sebastian Böck,
+           "Temporal convolutional networks for musical audio beat tracking",
+           Proceedings of the 27th European Signal Processing Conference
+           (EUSIPCO), 2019.
+    .. [2] Sebastian Böck, Matthew Davies and Peter Knees,
+           "Multi-Task learning of tempo and beat: learning one to improve the
+           other",
+           Proceedings of the 20th International Society for Music Information
+           Retrieval Conference (ISMIR), 2019.
+
+    """
+
+    def __init__(self, nn_files=None, tasks=(0, ), **kwargs):
+        # pylint: disable=unused-argument
+        from operator import itemgetter
+        from ..audio.signal import SignalProcessor, FramedSignalProcessor
+        from ..audio.stft import ShortTimeFourierTransformProcessor
+        from ..audio.spectrogram import (
+            FilteredSpectrogramProcessor, LogarithmicSpectrogramProcessor)
+        from ..ml.nn import NeuralNetworkEnsemble
+        from ..models import BEATS_TCN
+        # choose the appropriate models
+        if nn_files is None:
+            nn_files = BEATS_TCN
+        # define pre-processing chain
+        sig = SignalProcessor(num_channels=1, sample_rate=44100)
+        frames = FramedSignalProcessor(frame_size=2048, **kwargs)
+        stft = ShortTimeFourierTransformProcessor()  # caching FFT window
+        filt = FilteredSpectrogramProcessor(num_bands=12, fmin=30,
+                                            fmax=17000, norm_filters=True)
+        spec = LogarithmicSpectrogramProcessor(log=np.log, add=1e-6)
+        pre_processor = SequentialProcessor((sig, frames, stft, filt, spec))
+        # pad pre-processed signal
+        pad = _tcn_beat_processor_pad
+        # and process it with a NN ensemble
+        nn = NeuralNetworkEnsemble.load(nn_files, **kwargs)
+        # beats are the first element of the returned tuple
+        pick = itemgetter(*tasks)
+        # instantiate a SequentialProcessor
+        super(TCNBeatProcessor, self).__init__((pre_processor, pad, nn, pick))
 
 
 # class for selecting a certain beat activation functions from (multiple) NNs
