@@ -11,6 +11,7 @@ This module contains neural network layers for the ml.nn module.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+from numpy.lib.stride_tricks import as_strided
 from scipy.ndimage import convolve as _scipy_convolve
 from scipy.ndimage.filters import maximum_filter
 
@@ -755,7 +756,8 @@ def convolve(data, kernel, pad='valid'):
 
     """
     t, f = kernel.shape
-    if _convolve_opencv is None or (t < 1024 and f == 1):
+    # use opencv's convolution for small kernels if available
+    if _convolve_opencv is None:  # or t == 1 or f == 1:
         return _convolve_scipy(data, kernel, pad)
     else:
         return _convolve_opencv(data, kernel, pad)
@@ -1175,3 +1177,146 @@ class PadLayer(Layer):
         data_padded = np.full(tuple(shape), self.value)
         data_padded[tuple(data_idxs)] = data
         return data_padded
+
+
+class TCNBlock(Layer):
+    """
+    TCN Block.
+
+    Parameters
+    ----------
+    dilated_conv : ConvolutionalLayer or List thereof
+        Layer(s) which performs the dilated convolution.
+    dilation_rate : int, optional or List of ints
+        Dilation rate(s) of the `dilated_conv` layer(s).
+    activation_fn : numpy ufunc, optional
+        Activation function to be applied after the dilated convolution.
+    skip_conv : ConvolutionalLayer, optional
+        Layer which convolves the output of the dilated convolution to be used
+        as skip connection and added to the residual data. If 'None', the
+        output after the activation function is used directly.
+    residual_conv : ConvolutionalLayer, optional
+        Layer which convolves the input data to have the same output dimension
+        as the main activation path. If 'None', the input data is added
+        directly to the output of the skip convolution.
+
+    """
+
+    def __init__(self, dilated_conv, dilation_rate, activation_fn=None,
+                 skip_conv=None, residual_conv=None):
+        self.dilated_conv = dilated_conv
+        self.dilation_rate = dilation_rate
+        self.activation_fn = activation_fn
+        self.skip_conv = skip_conv
+        self.residual_conv = residual_conv
+
+    @staticmethod
+    def _dilate_data(data, size, dilation_rate):
+        if dilation_rate is None:
+            return data
+        # Note: TCNBlock supports only 1D convolutions, data is given as
+        #       (time, freq=1, num_features), thus reshape to given size
+        #       (time, kernel_size, num_features)
+        #       to be able to convolve with normal 2D convolution
+        # determine data shape and number of bytes per item
+        t, f, n = data.shape
+        i = data.itemsize
+        assert f == 1, 'TCNBlock supports only 1D dilated convolutions.'
+        # to be able to use as_strided we have to pad the data accordingly
+        # pad twice the dilation_rate on each side with zeros
+        zeros = np.zeros((dilation_rate * 2, f, n), dtype=data.dtype)
+        padded_data = np.concatenate((zeros, data, zeros))
+        # return a dilated view of the data
+        return as_strided(padded_data,
+                          shape=(t, size, n),
+                          strides=(n * i, n * i * dilation_rate, i))
+
+    def activate(self, data, **kwargs):
+        """
+        Activate TCNBlock.
+
+        Parameters
+        ----------
+        data : numpy array
+            Activate with this data.
+
+        Returns
+        -------
+        tuple
+            Dilated (and activated) data, skip connection.
+
+        """
+        # the layer uses multiple dilated convolutions
+        if isinstance(self.dilated_conv, list):
+            # layer has multiple dilated convolutions
+            out = []
+            for conv, rate in zip(self.dilated_conv, self.dilation_rate):
+                size = conv.weights.shape[-1]
+                out.append(conv(self._dilate_data(data, size, rate)))
+            # concatenate their output
+            out = np.concatenate(out, axis=-1)
+        else:
+            # layer has only a single dilated convolutions
+            size = self.dilated_conv.weights.shape[-1]
+            out = self.dilated_conv(self._dilate_data(data, size,
+                                                      self.dilation_rate))
+        if self.activation_fn is not None:
+            out = self.activation_fn(out)
+        if self.skip_conv is not None:
+            out = self.skip_conv(out)
+        if self.residual_conv is not None:
+            res = self.residual_conv(data)
+        else:
+            res = data
+        return res + out, out
+
+
+class TCNLayer(Layer):
+    """
+    Temporal convolutional network layer.
+
+    Parameters
+    ----------
+    tcn_blocks : list of TCNBlock instances
+        TCN blocks which perform the dilated convolutions.
+    activation_fn : numpy ufunc, optional
+        Activation function to be applied after the TCN blocks.
+    skip_connections : bool, optional
+        Aggregate skip connections by summation.
+
+    """
+
+    def __init__(self, tcn_blocks, activation_fn=None, skip_connections=False):
+        self.tcn_blocks = tcn_blocks
+        self.skip_connections = skip_connections
+        self.activation_fn = activation_fn
+
+    def activate(self, data, **kwargs):
+        """
+        Activate TCNLayer.
+
+        Parameters
+        ----------
+        data : numpy array (num_frames, num_inputs)
+            Activate with this data.
+
+        Returns
+        -------
+        numpy array or tuple
+            Activations for this data. If `skip_connections` is 'True', a tuple
+            with the summed skip connections as its second element is returned.
+
+        """
+        skip_connections = None
+        for i, tcn_block in enumerate(self.tcn_blocks):
+            data, skip = tcn_block(data)
+            if i == 0:
+                skip_connections = skip
+            else:
+                skip_connections += skip
+        if self.activation_fn is not None:
+            self.activation_fn(data, out=data)
+        if self.skip_connections:
+            return data, skip_connections
+        else:
+            return data
