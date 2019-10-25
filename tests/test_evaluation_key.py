@@ -287,6 +287,22 @@ class TestKeyMeanEvaluation(unittest.TestCase):
         )
         self.eval_different_scores.error_scores = {'correct': 0.5}
 
+        self.eval_rel_of_fifth = KeyEvaluation(
+            load_key(join(DETECTIONS_PATH, 'dummy.relative_of_fifth.key.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
+            relative_of_fifth=True,
+            name='eval_rel_of_fifth'
+        )
+        self.eval_rel_of_fifth.error_scores = {'relative_of_fifth': 0.7}
+
+        self.eval_correct_w_rel_of_fifth = KeyEvaluation(
+            load_key(join(DETECTIONS_PATH, 'dummy.correct.key.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
+            relative_of_fifth=True,
+            name='eval_correct_w_rel_of_fifth'
+        )
+        self.eval_correct_w_rel_of_fifth.error_scores = {'relative_of_fifth': 0.7}
+
     def test_check_error_scores(self):
         evals = [self.eval_correct, self.eval_parallel,
                  self.eval_different_scores, self.eval_other]
@@ -300,7 +316,9 @@ class TestKeyMeanEvaluation(unittest.TestCase):
     def test_mean_results(self):
         evals = [self.eval_correct, self.eval_parallel, self.eval_relative,
                  self.eval_other]
+
         mean_eval = KeyMeanEvaluation(evals)
+
         self.assertAlmostEqual(mean_eval.correct, 1.0 / len(evals))
         self.assertAlmostEqual(mean_eval.fifth, 0.0)
         self.assertAlmostEqual(mean_eval.relative, 1.0 / len(evals))
@@ -308,6 +326,37 @@ class TestKeyMeanEvaluation(unittest.TestCase):
         self.assertAlmostEqual(mean_eval.parallel, 1.0 / len(evals))
         self.assertAlmostEqual(mean_eval.other, 1.0 / len(evals))
         self.assertAlmostEqual(mean_eval.weighted, 0.375)
+        self.assertEqual(mean_eval.tostring(),
+                         'mean for 4 files\n  '
+                         'Weighted: 0.375  '
+                         'Correct: 0.250  '
+                         'Fifth: 0.000  '
+                         'Relative: 0.250  '
+                         'Parallel: 0.250  '
+                         'Other: 0.250')
+
+    def test_mean_results_w_rel_of_fifth(self):
+        evals = [self.eval_correct_w_rel_of_fifth,
+                 self.eval_rel_of_fifth]
+
+        mean_eval = KeyMeanEvaluation(evals, name='Jean-Guy')
+
+        self.assertAlmostEqual(mean_eval.correct, 1.0 / len(evals))
+        self.assertAlmostEqual(mean_eval.fifth, 0.0)
+        self.assertAlmostEqual(mean_eval.relative, 0.0)
+        self.assertAlmostEqual(mean_eval.relative_of_fifth, 1.0 / len(evals))
+        self.assertAlmostEqual(mean_eval.parallel, 0.0 / len(evals))
+        self.assertAlmostEqual(mean_eval.other, 0.0 / len(evals))
+        self.assertAlmostEqual(mean_eval.weighted, 0.5)
+        self.assertEqual(mean_eval.tostring(),
+                         'Jean-Guy\n  '
+                         'Weighted: 0.500  '
+                         'Correct: 0.500  '
+                         'Fifth: 0.000  '
+                         'Relative: 0.000  '
+                         'Relative of fifth: 0.500  '
+                         'Parallel: 0.000  '
+                         'Other: 0.000')
 
 
 class TestAddParserFunction(unittest.TestCase):

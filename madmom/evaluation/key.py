@@ -307,7 +307,7 @@ class KeyMeanEvaluation(EvaluationMixin):
 
     def __init__(self, eval_objects, name=None):
         self.name = name or 'mean for {:d} files'.format(len(eval_objects))
-
+        self.relative_of_fifth_present = False
         n = len(eval_objects)
         if n > 0:
             c = Counter(e.error_category for e in eval_objects)
@@ -325,6 +325,11 @@ class KeyMeanEvaluation(EvaluationMixin):
             else:
                 raise ValueError('Different error_scores found in the '
                                  'KeyEvaluation objects.')
+
+            # Flag used in `tostring` to figure out whether to display info
+            # related to the relative of fifth
+            if self.relative_of_fifth > 0:
+                self.relative_of_fifth_present = True
         else:
             raise ValueError('The list of evaluations is empty.')
 
@@ -341,13 +346,18 @@ class KeyMeanEvaluation(EvaluationMixin):
         return all_the_same
 
     def tostring(self, **kwargs):
-        return ('{}\n  Weighted: {:.3f}  Correct: {:.3f}  Fifth: {:.3f}  '
-                'Relative: {:.3f}  Relative of Fifth: {:.3f} '
-                'Parallel: {:.3f}  '
-                'Other: {:.3f}'.format(self.name, self.weighted, self.correct,
-                                       self.fifth, self.relative,
-                                       self.relative_of_fifth, self.parallel,
-                                       self.other))
+        ret = ''
+        spacing = ' ' * 2
+        ret += '{}\n'.format(self.name) + spacing
+        ret += 'Weighted: {:.3f}'.format(self.weighted) + spacing
+        ret += 'Correct: {:.3f}'.format(self.correct) + spacing
+        ret += 'Fifth: {:.3f}'.format(self.fifth) + spacing
+        ret += 'Relative: {:.3f}'.format(self.relative) + spacing
+        if self.relative_of_fifth_present:
+            ret += 'Relative of fifth: {:.3f}'.format(self.relative_of_fifth) + spacing
+        ret += 'Parallel: {:.3f}'.format(self.parallel) + spacing
+        ret += 'Other: {:.3f}'.format(self.other)
+        return ret
 
 
 def add_parser(parser):
