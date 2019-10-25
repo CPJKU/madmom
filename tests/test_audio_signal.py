@@ -340,7 +340,7 @@ class TestMixFunction(unittest.TestCase):
 
     def test_channel_selection(self):
         result = remix(sig_2d, 1, channel=0)
-        self.assertEquals(result.shape, sig_1d.shape)
+        self.assertEqual(result.shape, sig_1d.shape)
         self.assertTrue(np.array_equal(result, sig_1d))
         result = remix(sig_2d, 1, channel=1)
         self.assertTrue(np.array_equal(result, sig_2d[:, 1]), 0)
@@ -986,6 +986,49 @@ class TestSignalFrameFunction(unittest.TestCase):
         # test with float origin with half the size of the frame size
         result = signal_frame(np.arange(10), 0, 5, 2, -2.5)
         self.assertTrue(np.allclose(result, [0, 1, 2, 3, 4]))
+
+    def test_pad(self):
+        # 1D signal
+        x = np.arange(10, 20)
+        # pad with a fixed value
+        result = signal_frame(x, 0, frame_size=4, hop_size=2, pad=-1)
+        self.assertTrue(np.allclose(result, [-1, -1, 10, 11]))
+        result = signal_frame(x, 5, frame_size=4, hop_size=2, pad=-1)
+        self.assertTrue(np.allclose(result, [18, 19, -1, -1]))
+        # repeat first value
+        result = signal_frame(x, 0, frame_size=4, hop_size=2, pad='repeat')
+        self.assertTrue(np.allclose(result, [10, 10, 10, 11]))
+        result = signal_frame(x, -10, frame_size=4, hop_size=2, pad='repeat')
+        self.assertTrue(np.allclose(result, [10, 10, 10, 10]))
+        # repeat last value
+        result = signal_frame(x, 0, frame_size=4, hop_size=2, pad='repeat')
+        self.assertTrue(np.allclose(result, [10, 10, 10, 11]))
+        result = signal_frame(x, 20, frame_size=3, hop_size=3, pad='repeat')
+        self.assertTrue(np.allclose(result, [19, 19, 19]))
+
+        # 2D signal
+        x = np.arange(10, 30).reshape((10, 2))
+        # pad with a fixed value
+        result = signal_frame(x, 0, frame_size=4, hop_size=2, pad=-1)
+        self.assertTrue(
+            np.allclose(result, [[-1, -1], [-1, -1], [10, 11], [12, 13]]))
+        result = signal_frame(x, 0, frame_size=4, hop_size=2, pad=[-1, -2])
+        self.assertTrue(
+            np.allclose(result, [[-1, -2], [-1, -2], [10, 11], [12, 13]]))
+        # pad by repeating first/last frame
+        result = signal_frame(x, 0, frame_size=4, hop_size=2, pad='repeat')
+        self.assertTrue(
+            np.allclose(result, [[10, 11], [10, 11], [10, 11], [12, 13]]))
+        result = signal_frame(x, 5, frame_size=4, hop_size=2, pad='repeat')
+        self.assertTrue(
+            np.allclose(result, [[26, 27], [28, 29], [28, 29], [28, 29]]))
+        # requested frame out of signal
+        result = signal_frame(x, -2, frame_size=4, hop_size=2, pad='repeat')
+        self.assertTrue(
+            np.allclose(result, [[10, 11], [10, 11], [10, 11], [10, 11]]))
+        result = signal_frame(x, 7, frame_size=4, hop_size=2, pad='repeat')
+        self.assertTrue(
+            np.allclose(result, [[28, 29], [28, 29], [28, 29], [28, 29]]))
 
 
 # framing classes

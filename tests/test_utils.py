@@ -10,11 +10,10 @@ from __future__ import absolute_import, division, print_function
 import unittest
 from os.path import join as pj
 
-from madmom.io import load_events
 from madmom.utils import *
 from . import (ACTIVATIONS_PATH, ANNOTATIONS_PATH, AUDIO_PATH, DATA_PATH,
                DETECTIONS_PATH)
-from .test_features_notes import NOTES
+from .test_evaluation_notes import ANNOTATIONS as NOTES
 
 FILE_LIST = [pj(DATA_PATH, 'README'),
              pj(DATA_PATH, 'commented_txt'),
@@ -49,7 +48,8 @@ ACTIVATION_FILES = [pj(ACTIVATIONS_PATH, 'sample.bar_tracker.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.super_flux_nn.npz'),
                     pj(ACTIVATIONS_PATH, 'sample2.cnn_chord_features.npz'),
                     pj(ACTIVATIONS_PATH, 'sample2.deep_chroma.npz'),
-                    pj(ACTIVATIONS_PATH, 'stereo_sample.notes_brnn.npz')]
+                    pj(ACTIVATIONS_PATH, 'stereo_sample.notes_brnn.npz'),
+                    pj(ACTIVATIONS_PATH, 'stereo_sample.notes_cnn.npz')]
 
 ANNOTATION_FILES = [pj(ANNOTATIONS_PATH, 'dummy.chords'),
                     pj(ANNOTATIONS_PATH, 'sample.beats'),
@@ -450,6 +450,23 @@ class TestQuantizeNotesFunction(unittest.TestCase):
             quantize_notes([[0], [1], [2]], fps=100)
         with self.assertRaises(ValueError):
             quantize_notes(np.arange(8).reshape((2, 2, 2)), fps=100)
+
+
+class TestExpandNotesFunction(unittest.TestCase):
+
+    def test_values(self):
+        # only onset and note number given
+        result = expand_notes(NOTES[:, :2])
+        self.assertTrue(np.allclose(result[:, :2], NOTES[:, :2]))
+        self.assertTrue(np.allclose(result[:, 2], 0.6))
+        self.assertTrue(np.allclose(result[:, 3], 100))
+        # also duration given
+        result = expand_notes(NOTES[:, :3], velocity=66)
+        self.assertTrue(np.allclose(result[:, :3], NOTES[:, :3]))
+        self.assertTrue(np.allclose(result[:, 3], 66))
+        # also velocity given
+        result = expand_notes(NOTES)
+        self.assertTrue(np.allclose(result, NOTES))
 
 
 class TestSegmentAxisFunction(unittest.TestCase):

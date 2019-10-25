@@ -362,6 +362,10 @@ References
     *Genre-Agnostic Key Classification with Convolutional Neural Networks*,
     Proceedings of the 19th International Society for Music Information
     Retrieval Conference (ISMIR), 2018.
+.. [19] Rainer Kelz, Sebastian Böck and Gerhard Widmer,
+    *Deep Polyphonic ADSR Piano Note Transcription*,
+    Proceedings of the 44th International Conference on Acoustics, Speech and
+    Signal Processing (ICASSP), 2019.
 
 Acknowledgements
 ================

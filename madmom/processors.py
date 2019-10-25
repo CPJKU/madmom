@@ -22,6 +22,7 @@ import os
 import sys
 from collections import MutableSequence
 
+import madmom
 import numpy as np
 
 from .utils import integer_types
@@ -619,7 +620,7 @@ class _ParallelProcess(mp.Process):
 
     def run(self):
         """Process all tasks from the task queue."""
-        from .audio.signal import LoadAudioFileError
+        from .io.audio import LoadAudioFileError
         while True:
             # get the task tuple
             processor, infile, outfile, kwargs = self.task_queue.get()
@@ -628,8 +629,9 @@ class _ParallelProcess(mp.Process):
                 _process((processor, infile, outfile, kwargs))
             except LoadAudioFileError as e:
                 print(e)
-            # signal that it is done
-            self.task_queue.task_done()
+            finally:
+                # signal that it is done
+                self.task_queue.task_done()
 
 
 # function to batch process multiple files with a processor
@@ -861,6 +863,15 @@ def process_online(processor, infile, outfile, **kwargs):
     # set default values
     kwargs['sample_rate'] = kwargs.get('sample_rate', 44100)
     kwargs['num_channels'] = kwargs.get('num_channels', 1)
+    # list all available PyAudio devices and exit afterwards
+    if kwargs['list_stream_input_device']:
+        import pyaudio
+        pa = pyaudio.PyAudio()
+        for i in range(pa.get_device_count()):
+            info = pa.get_device_info_by_index(i)
+            print('%d: %s' % (info['index'], info['name']))
+        exit(0)
+
     # if no input file is given, create a Stream with the given arguments
     if infile is None:
         # open a stream and start if not running already
@@ -997,6 +1008,15 @@ def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
                         default=output, help='output file [default: STDOUT]')
         sp.add_argument('-j', dest='num_threads', type=int, default=1,
                         help='number of threads [default=%(default)s]')
+        sp.add_argument('--device', dest='stream_input_device', type=int,
+                        default=None, help='PyAudio device index of the '
+                                           'desired input device '
+                                           '[default=%(default)s]')
+        sp.add_argument('--list', dest='list_stream_input_device',
+                        action='store_true', default=False,
+                        help='show a list of available PyAudio devices; index '
+                             'can be used as STREAM_INPUT_DEVICE for the '
+                             '--device argument')
         # set arguments for loading processors
         sp.set_defaults(online=True)      # use online settings/parameters
         sp.set_defaults(num_frames=1)     # process everything frame-by-frame
