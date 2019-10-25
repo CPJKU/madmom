@@ -310,22 +310,16 @@ class KeyMeanEvaluation(EvaluationMixin):
     def __init__(self, eval_objects, name=None):
         self.name = name or 'mean for {:d} files'.format(len(eval_objects))
         self.relative_of_fifth_present = False
-        n = len(eval_objects)
-        if n > 0:
-            # Check that all the key evaluation objects are evaluating errors
-            # the same way
-            if check_key_eval_objects(eval_objects):
-                self._count_evaluations(eval_objects)
-
-                if self.relative_of_fifth > 0:
-                    self.relative_of_fifth_present = True
-            else:
-                raise ValueError('The KeyEvaluation objects are not '
-                                 'all the same.')
+        if check_key_eval_objects(eval_objects):
+            self._count_evaluations(eval_objects)
+            if self.relative_of_fifth > 0:
+                self.relative_of_fifth_present = True
         else:
-            raise ValueError('The list of evaluations is empty.')
+            raise ValueError('The KeyEvaluation objects are not '
+                             'all the same.')
 
     def _count_evaluations(self, eval_objects):
+        n = len(eval_objects)
         c = Counter(e.error_category for e in eval_objects)
         self.correct = float(c['correct']) / n
         self.fifth = float(c['fifth']) / n
@@ -359,14 +353,10 @@ def check_key_eval_objects(key_eval_objects):
     ----------
     key_eval_objects: list
         Key evaluation objects
-
-    :return:
     """
-
     error_scores_OK = check_error_scores(key_eval_objects)
     strict_fifth_OK = check_strict_fifth(key_eval_objects)
     rel_fifth_OK = check_relative_of_fifth(key_eval_objects)
-
     return error_scores_OK and strict_fifth_OK and rel_fifth_OK
 
 
