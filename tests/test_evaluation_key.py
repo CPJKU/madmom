@@ -287,6 +287,13 @@ class TestKeyMeanEvaluation(unittest.TestCase):
         )
         self.eval_different_scores.error_scores = {'correct': 0.5}
 
+        self.eval_correct_w_rel_of_fifth = KeyEvaluation(
+            load_key(join(DETECTIONS_PATH, 'dummy.correct.key.txt')),
+            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
+            relative_of_fifth=True,
+            name='eval_correct_w_rel_of_fifth'
+        )
+
         self.eval_rel_of_fifth = KeyEvaluation(
             load_key(join(DETECTIONS_PATH, 'dummy.relative_of_fifth.key.txt')),
             load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
