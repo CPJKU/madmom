@@ -1148,7 +1148,7 @@ class DBNBarTrackingProcessor(Processor):
         last_beat_number = np.mod(beat_numbers[-1], meter) + 1
         beat_numbers = np.append(beat_numbers, last_beat_number)
         # return beats and their beat numbers
-        return np.vstack(zip(beats, beat_numbers))
+        return np.vstack((beats, beat_numbers)).T
 
     @classmethod
     def add_arguments(cls, parser, beats_per_bar,

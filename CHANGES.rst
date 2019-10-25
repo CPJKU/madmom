@@ -6,11 +6,27 @@ Version 0.17.dev0
 
 New features:
 
+* `PyFFTW` is used to speed up FFT computation (#363)
+* Sustain information of MIDI files is honoured (#370)
+* Python 3.7 support (#374)
 * Volume changes according to `ReplayGain` tags can be applied (#400)
+* ICASSP 2019 ADSR Piano Note Transcription (#445)
 
 Bug fixes:
 
+* Respect `num_channels` when creating `Signal` from array (#368)
+* Fix erroneously applied smoothing for DBN tempo estimation (#376)
+* `DBNBarTrackingProcessor` can model a single bar length (#394)
 * `BufferProcessor` can handle data longer than buffer length (#398)
+* Fix hanging batch processing when loading non-audio files (#443)
+
+Other changes:
+
+* Volume changes according to `ReplayGain` tags can be applied (#400)
+* Allow selection of channel when loading audio file in mono (#409)
+* Allow reading audio from file objects created in memory (#418)
+* Add `pad` option to `signal_frame()` (#441)
+
 
 Version 0.16.1 (release date: 2017-11-14)
 -----------------------------------------

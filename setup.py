@@ -63,7 +63,7 @@ classifiers = ['Development Status :: 3 - Alpha',
 requirements = ['numpy>=1.13.4',
                 'scipy>=0.16',
                 'cython>=0.25',
-                'mido>=1.2.8',
+                'mido>=1.2.6',
                 ]
 
 # docs to be included

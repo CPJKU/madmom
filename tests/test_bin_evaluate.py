@@ -90,11 +90,12 @@ class TestEvaluateScript(unittest.TestCase):
         self.assertTrue(np.allclose(res, [0, 0, 1, 0, 0, 0, 0.3]))
 
     def test_notes(self):
-        res = run_script('notes', det_suffix='.piano_transcriptor.txt')
+        res = run_script('notes', det_suffix='.piano_transcriptor.txt',
+                         args=['-w', '0.05'])
         # second line contains the summed results
         sum_res = np.fromiter(res[1].split(',')[1:], dtype=np.float)
         self.assertTrue(
-            np.allclose(sum_res, [4, 0, 0, 4, 8, 1, 0.5, 0.667, 0.500]))
+            np.allclose(sum_res, [8, 0, 0, 0, 8, 1, 1, 1, 1]))
         # third line contains the mean results
         mean_res = np.fromiter(res[2].split(',')[1:], dtype=np.float)
         self.assertTrue(np.allclose(mean_res, sum_res))
