@@ -175,11 +175,11 @@ def error_type(det_key, ann_key, strict_fifth=False, relative_of_fifth=False):
     'correct'
 
     # annotated: 'C major' / detected: 'G major': +7 semitones
-    >>> error_type(7,0)
+    >>> error_type(7, 0)
     'fifth'
 
     # annotated: 'C major' / detected: 'F major': -7 semitones (modulo 12)
-    >>> error_type(5,0)
+    >>> error_type(5, 0)
     'fifth'
 
     # annotated: 'C major' / detected: 'F major': -7 semitones (modulo 12),
@@ -228,11 +228,13 @@ class KeyEvaluation(EvaluationMixin):
     Parameters
     ----------
     detection : str
-        File containing detected key
+        File containing detected key.
     annotation : str
-        File containing annotated key
+        File containing annotated key.
     strict_fifth : bool, optional
         Use strict interpretation of the 'fifth' category, as in MIREX.
+    relative_of_fifth: bool, optional
+        Consider relative of the fifth in the evaluation.
     name : str, optional
         Name of the evaluation object (e.g., the name of the song).
 
@@ -263,7 +265,7 @@ class KeyEvaluation(EvaluationMixin):
                                          self.annotation,
                                          strict_fifth,
                                          relative_of_fifth)
-        self.score = self.error_scores.get(self.error_category, 0.0)
+        self.score = self.error_scores[self.error_category]
 
     def tostring(self, **kwargs):
         """
