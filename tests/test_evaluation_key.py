@@ -293,19 +293,15 @@ class TestKeyMeanEvaluation(unittest.TestCase):
             relative_of_fifth=True,
             name='eval_rel_of_fifth'
         )
-        self.eval_rel_of_fifth.error_scores = {'relative_of_fifth': 0.7}
 
-        self.eval_correct_w_rel_of_fifth = KeyEvaluation(
-            load_key(join(DETECTIONS_PATH, 'dummy.correct.key.txt')),
-            load_key(join(ANNOTATIONS_PATH, 'dummy.key')),
-            relative_of_fifth=True,
-            name='eval_correct_w_rel_of_fifth'
-        )
-        self.eval_correct_w_rel_of_fifth.error_scores = {'relative_of_fifth': 0.7}
-
-    def test_check_error_scores(self):
+    def test_check_key_eval_objects(self):
         evals = [self.eval_correct, self.eval_parallel,
                  self.eval_different_scores, self.eval_other]
+        with self.assertRaises(ValueError):
+            KeyMeanEvaluation(evals)
+
+        evals = [self.eval_correct, self.eval_parallel,
+                 self.eval_rel_of_fifth]
         with self.assertRaises(ValueError):
             KeyMeanEvaluation(evals)
 

@@ -261,10 +261,12 @@ class KeyEvaluation(EvaluationMixin):
         self.name = name or ''
         self.detection = key_label_to_class(detection)
         self.annotation = key_label_to_class(annotation)
+        self.strict_fifth = strict_fifth
+        self.relative_of_fifth = relative_of_fifth
         self.error_category = error_type(self.detection,
                                          self.annotation,
-                                         strict_fifth,
-                                         relative_of_fifth)
+                                         self.strict_fifth,
+                                         self.relative_of_fifth)
         self.score = self.error_scores[self.error_category]
 
     def tostring(self, **kwargs):
@@ -310,40 +312,27 @@ class KeyMeanEvaluation(EvaluationMixin):
         self.relative_of_fifth_present = False
         n = len(eval_objects)
         if n > 0:
-            c = Counter(e.error_category for e in eval_objects)
-
-            self.correct = float(c['correct']) / n
-            self.fifth = float(c['fifth']) / n
-            self.relative = float(c['relative']) / n
-            self.relative_of_fifth = float(c['relative_of_fifth']) / n
-            self.parallel = float(c['parallel']) / n
-            self.other = float(c['other']) / n
-            # Check that all the error_scores in the eval_objects are the same
-            # (otherwise a weighted result would be hard to interpret)
-            if self._check_error_scores(eval_objects):
+            # Check that all the key evaluation objects are evaluating errors
+            # the same way
+            if check_key_eval_objects(eval_objects):
+                # Counting the error categories
+                c = Counter(e.error_category for e in eval_objects)
+                self.correct = float(c['correct']) / n
+                self.fifth = float(c['fifth']) / n
+                self.relative = float(c['relative']) / n
+                self.parallel = float(c['parallel']) / n
+                self.other = float(c['other']) / n
+                self.relative_of_fifth = float(c['relative_of_fifth']) / n
                 self.weighted = sum(e.score for e in eval_objects) / n
-            else:
-                raise ValueError('Different error_scores found in the '
-                                 'KeyEvaluation objects.')
 
-            # Flag used in `tostring` to figure out whether to display info
-            # related to the relative of fifth
-            if self.relative_of_fifth > 0:
-                self.relative_of_fifth_present = True
+                if self.relative_of_fifth > 0:
+                    self.relative_of_fifth_present = True
+            else:
+                raise ValueError('The KeyEvaluation objects are not '
+                                 'all the same.')
+
         else:
             raise ValueError('The list of evaluations is empty.')
-
-    def _check_error_scores(self, eval_objects):
-        all_the_same = True
-        indScores = 0
-        while (indScores < len(eval_objects) - 1) and all_the_same:
-            if eval_objects[indScores].error_scores \
-                    != eval_objects[indScores + 1].error_scores:
-                all_the_same = False
-                break
-            else:
-                indScores += 1
-        return all_the_same
 
     def tostring(self, **kwargs):
         ret = ''
@@ -358,6 +347,34 @@ class KeyMeanEvaluation(EvaluationMixin):
         ret += 'Parallel: {:.3f}'.format(self.parallel) + spacing
         ret += 'Other: {:.3f}'.format(self.other)
         return ret
+
+
+def check_key_eval_objects(key_eval_objects):
+    """
+    Check whether all the key evaluation objects in a list have the same way of
+    scoring errors, evaluating fifth and if they include relative of fifth
+
+    Parameters:
+    ----------
+    key_eval_objects: list
+        Key evaluation objects
+
+    :return:
+    """
+    all_the_same = True
+    ind_eval = 0
+    while (ind_eval < len(key_eval_objects) - 1) and all_the_same:
+        if key_eval_objects[ind_eval].error_scores \
+                != key_eval_objects[ind_eval + 1].error_scores or \
+           key_eval_objects[ind_eval].strict_fifth \
+                != key_eval_objects[ind_eval + 1].strict_fifth or \
+           key_eval_objects[ind_eval].relative_of_fifth \
+                != key_eval_objects[ind_eval + 1].relative_of_fifth:
+            all_the_same = False
+            break
+        else:
+            ind_eval += 1
+    return all_the_same
 
 
 def add_parser(parser):
