@@ -338,7 +338,8 @@ class KeyMeanEvaluation(EvaluationMixin):
         ret += 'Fifth: {:.3f}'.format(self.fifth) + spacing
         ret += 'Relative: {:.3f}'.format(self.relative) + spacing
         if self.relative_of_fifth_present:
-            ret += 'Relative of fifth: {:.3f}'.format(self.relative_of_fifth) + spacing
+            ret += 'Relative of fifth: {:.3f}'.format(self.relative_of_fifth) \
+                   + spacing
         ret += 'Parallel: {:.3f}'.format(self.parallel) + spacing
         ret += 'Other: {:.3f}'.format(self.other)
         return ret
