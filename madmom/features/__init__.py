@@ -298,6 +298,5 @@ from .notes import (CNNPianoNoteProcessor, ADSRNoteTrackingProcessor,
                     NoteOnsetPeakPickingProcessor, NotePeakPickingProcessor,
                     RNNPianoNoteProcessor)
 from .onsets import (CNNOnsetProcessor, OnsetPeakPickingProcessor,
-                     PeakPickingProcessor, RNNOnsetProcessor,
-                     SpectralOnsetProcessor)
+                     RNNOnsetProcessor, SpectralOnsetProcessor)
 from .tempo import TempoEstimationProcessor
