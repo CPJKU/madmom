@@ -894,6 +894,13 @@ class TestSignalProcessorClass(unittest.TestCase):
         self.assertEqual(self.processor.norm, processor.norm)
         self.assertEqual(self.processor.gain, processor.gain)
 
+    @unittest.skipIf(sys.version_info < (3, 2), 'assertWarns needs Python 3.2')
+    def test_multiprocessing(self):
+        from concurrent.futures import ProcessPoolExecutor
+        sig = Signal(sample_file)
+        pool = ProcessPoolExecutor(max_workers=2)
+        pool.submit(self.processor, sig).result()
+
 
 # framing functions
 class TestSignalFrameFunction(unittest.TestCase):
