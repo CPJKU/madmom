@@ -2,20 +2,19 @@ language: python
 matrix:
   include:
     - python: 2.7
-      dist: trusty
+      dist: xenial
       sudo: required
     - python: 3.5
-      dist: trusty
+      dist: xenial
       sudo: required
     - python: 3.6
-      dist: trusty
+      dist: xenial
       sudo: required
     - python: 3.7
       dist: xenial
       sudo: required
 before_install:
   # get a working ffmpeg
-  - sudo add-apt-repository --yes ppa:jonathonf/ffmpeg-3
   - sudo apt-get update -qq
   - sudo apt-get install -qq ffmpeg
   - sudo apt-get install -qq libfftw3-dev
