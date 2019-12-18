@@ -15,8 +15,12 @@ matrix:
       sudo: required
 before_install:
   # get a working ffmpeg
+  - sudo wget -O ffmpeg.tar.gz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
+  - sudo mkdir ffmpeg
+  - sudo tar xvf ffmpeg.tar.gz -C ffmpeg --strip-components=1
+  - sudo cp ffmpeg/ffmpeg ffmpeg/ffprobe /usr/bin/
+  # install system libraries
   - sudo apt-get update -qq
-  - sudo apt-get install -qq ffmpeg
   - sudo apt-get install -qq libfftw3-dev
   # install numpy etc. via miniconda
   - if [[ "$TRAVIS_PYTHON_VERSION" == "2.7" ]]; then
