@@ -10,6 +10,7 @@ Utility package.
 
 from __future__ import absolute_import, division, print_function
 
+import io
 import argparse
 import contextlib
 
@@ -23,6 +24,13 @@ try:
 except NameError:
     string_types = str
     integer_types = (int, np.integer)
+
+
+# Python 2/3 file compatibility
+try:
+    file_types = (io.IOBase, file)
+except NameError:
+    file_types = io.IOBase
 
 
 # decorator to suppress warnings

@@ -119,6 +119,47 @@ def run_help(program):
 
 # TODO: can we speed up these tests?
 
+class TestDifferentFileFormats(unittest.TestCase):
+
+    def setUp(self):
+        # use SuperFlux since it is fast
+        self.bin = pj(program_path, "SuperFlux")
+        self.result = [0.14, 1.57, 2.52, 3.365, 4.14]
+        self.result_file = pj(AUDIO_PATH, 'stereo_sample.onsets.txt')
+
+    def test_single_wav(self):
+        run_single(self.bin, stereo_sample_file, tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result))
+
+    def test_single_flac(self):
+        run_single(self.bin, stereo_sample_file[:-3] + 'flac', tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result))
+
+    def test_single_m4a(self):
+        run_single(self.bin, stereo_sample_file[:-3] + 'm4a', tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result))
+
+    def test_batch_wav(self):
+        run_batch(self.bin, [stereo_sample_file])
+        result = np.loadtxt(self.result_file)
+        os.unlink(self.result_file)
+        self.assertTrue(np.allclose(result, self.result))
+
+    def test_batch_flac(self):
+        run_batch(self.bin, [stereo_sample_file[:-3] + 'flac'])
+        result = np.loadtxt(self.result_file)
+        os.unlink(self.result_file)
+        self.assertTrue(np.allclose(result, self.result))
+
+    def test_batch_m4a(self):
+        run_batch(self.bin, [stereo_sample_file[:-3] + 'm4a'])
+        result = np.loadtxt(self.result_file)
+        os.unlink(self.result_file)
+        self.assertTrue(np.allclose(result, self.result))
+
 
 class TestBarTrackerProgram(unittest.TestCase):
 
