@@ -14,11 +14,10 @@ import os
 import subprocess
 import sys
 import tempfile
-import io
 
 import numpy as np
 
-from ..utils import string_types
+from ..utils import string_types, file_types
 from ..audio.signal import Signal
 
 
@@ -126,16 +125,6 @@ def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1,
         raise RuntimeError('avconv has a bug, which results in wrong audio '
                            'slices! Decode the audio files to .wav first or '
                            'use ffmpeg.')
-    # input type handling
-    if isinstance(infile, Signal):
-        in_fmt = _ffmpeg_fmt(infile.dtype)
-        in_ac = str(int(infile.num_channels))
-        in_ar = str(int(infile.sample_rate))
-        infile = str("pipe:0")
-    elif isinstance(infile, io.IOBase):
-        infile = "-"
-    else:
-        infile = str(infile)
     # general options
     call = [cmd, "-v", "quiet", "-y"]
     # input options
@@ -143,8 +132,16 @@ def _ffmpeg_call(infile, output, fmt='f32le', sample_rate=None, num_channels=1,
         # use "%f" to avoid scientific float notation
         call.extend(["-ss", "%f" % float(skip)])
     # if we decode from STDIN, the format must be specified
-    if infile == "pipe:0":
+    if isinstance(infile, Signal):
+        in_fmt = _ffmpeg_fmt(infile.dtype)
+        in_ac = str(int(infile.num_channels))
+        in_ar = str(int(infile.sample_rate))
+        infile = "pipe:0"
         call.extend(["-f", in_fmt, "-ac", in_ac, "-ar", in_ar])
+    elif isinstance(infile, file_types):
+        infile = "pipe:0"
+    else:
+        infile = str(infile)
     call.extend(["-i", infile])
     if replaygain_mode:
         audio_filter = ("volume=replaygain=%s:replaygain_preamp=%.1f"
@@ -303,7 +300,7 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
 
     """
     # check input file type
-    if not isinstance(infile, (string_types, io.IOBase, Signal)):
+    if not isinstance(infile, (string_types, file_types, Signal)):
         raise ValueError("only file names, file objects or Signal instances "
                          "are supported as `infile`, not %s." % infile)
     # Note: closing the file-like object only stops decoding because ffmpeg
@@ -315,7 +312,7 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
                         replaygain_mode=replaygain_mode,
                         replaygain_preamp=replaygain_preamp)
     # redirect stdout to a pipe and buffer as requested
-    if isinstance(infile, (Signal, io.IOBase)):
+    if isinstance(infile, (Signal, file_types)):
         proc = subprocess.Popen(call, stdin=subprocess.PIPE,
                                 stdout=subprocess.PIPE, bufsize=buf_size)
     else:
@@ -323,8 +320,48 @@ def decode_to_pipe(infile, fmt='f32le', sample_rate=None, num_channels=1,
     return proc.stdout, proc
 
 
+def nonstreamable_mp4_file_object(infile, cmd="ffprobe"):
+    """
+    Test if the given audio file object is a non-streamable MPEG4 container.
+    Decode the given audio and return a file-like object for reading the
+    samples, as well as a process object.
+
+    Parameters
+    ----------
+    infile : file_types
+        File object to decode.
+    cmd : {'ffprobe', 'avprobe'}, optional
+        Probing command (defaults to ffprobe, alternatively supports avprobe).
+
+    Returns
+    -------
+    boolean
+        True when audio is non-streamable container, False otherwise.
+
+    """
+    call = [cmd, "-v", "debug", "-hide_banner",
+            "-show_entries", "format=format_name",
+            "-print_format", "default=nokey=1:noprint_wrappers=1",
+            "pipe:0"]
+    proc = subprocess.Popen(call, stdin=subprocess.PIPE,
+                            stdout=subprocess.PIPE,
+                            stderr=subprocess.PIPE)
+    out, err = proc.communicate(infile.read())
+    retcode = proc.poll()
+    infile.seek(0)
+    if retcode:
+        raise subprocess.CalledProcessError(retcode, call, output=err)
+    container_format = out.decode().strip()
+    partial_file = "partial file" in err.decode()
+    if container_format == "mov,mp4,m4a,3gp,3g2,mj2" and partial_file:
+        return True
+    else:
+        return False
+
+
 def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
-                     channel=None, skip=None, max_len=None, cmd='ffmpeg',
+                     channel=None, skip=None, max_len=None,
+                     cmd_decode='ffmpeg', cmd_probe='ffprobe',
                      replaygain_mode=None, replaygain_preamp=0.0):
     """
     Decode the given audio and return it as a binary string representation.
@@ -350,8 +387,10 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
         Number of seconds to skip at beginning of file.
     max_len : float, optional
         Maximum length in seconds to decode.
-    cmd : {'ffmpeg', 'avconv'}, optional
+    cmd_decode : {'ffmpeg', 'avconv'}, optional
         Decoding command (defaults to ffmpeg, alternatively supports avconv).
+    cmd_probe : {'ffprobe', 'avprobe'}, optional
+        Probing command (defaults to ffprobe, alternatively supports avprobe).
     replaygain_mode : {None, 'track','album'}, optional
         Specify the ReplayGain volume-levelling mode (None to disable).
     replaygain_preamp : float, optional
@@ -364,13 +403,13 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
 
     """
     # check input file type
-    if not isinstance(infile, (string_types, io.IOBase, Signal)):
+    if not isinstance(infile, (string_types, file_types, Signal)):
         raise ValueError("only file names, file objects or Signal instances "
                          "are supported as `infile`, not %s." % infile)
     # prepare decoding to pipe
     _, proc = decode_to_pipe(infile, fmt=fmt, sample_rate=sample_rate,
                              num_channels=num_channels, channel=channel,
-                             skip=skip, max_len=max_len, cmd=cmd,
+                             skip=skip, max_len=max_len, cmd=cmd_decode,
                              replaygain_mode=replaygain_mode,
                              replaygain_preamp=replaygain_preamp)
     # decode the input to memory
@@ -382,13 +421,38 @@ def decode_to_memory(infile, fmt='f32le', sample_rate=None, num_channels=1,
         except AttributeError:
             mv = memoryview(infile)
             signal, _ = proc.communicate(mv.cast('b'))
-    elif isinstance(infile, io.IOBase):
+    elif isinstance(infile, file_types):
         signal, _ = proc.communicate(infile.read())
         infile.seek(0)
+        # handle non-streamable MP4 container, which silently returns an empty
+        # signal
+        if not signal and nonstreamable_mp4_file_object(infile, cmd_probe):
+            try:
+                delete_file = False
+                try:
+                    # pass its path if the file exists on disk
+                    path = infile.name
+                except AttributeError:
+                    # otherwise store it as a temporary file
+                    with tempfile.NamedTemporaryFile(mode="wb", delete=False,
+                                                     suffix=".mp4") as f:
+                        f.write(infile.read())
+                    infile.seek(0)
+                    path = f.name
+                    delete_file = True
+                # retry by passing a path to ffmpeg instead of piping the
+                # audio to stdin (allows multiple reading passes)
+                signal = decode_to_memory(path, fmt, sample_rate, num_channels,
+                                          channel, skip, max_len, cmd_decode,
+                                          cmd_probe, replaygain_mode,
+                                          replaygain_preamp)
+            finally:
+                if delete_file:
+                    os.remove(path)
     else:
         signal, _ = proc.communicate()
     if proc.returncode != 0:
-        raise subprocess.CalledProcessError(proc.returncode, cmd)
+        raise subprocess.CalledProcessError(proc.returncode, cmd_decode)
     return signal
 
 
@@ -416,7 +480,7 @@ def get_file_info(infile, cmd='ffprobe'):
         info['sample_rate'] = infile.sample_rate
     else:
         # call ffprobe
-        if isinstance(infile, io.IOBase):
+        if isinstance(infile, file_types):
             call = [cmd, "-v", "quiet", "-show_streams", "pipe:0"]
             proc = subprocess.Popen(call, stdin=subprocess.PIPE,
                                     stdout=subprocess.PIPE)
@@ -504,16 +568,15 @@ def load_ffmpeg_file(filename, sample_rate=None, num_channels=None,
     if stop is not None:
         max_len = stop - start
     # convert the audio signal using ffmpeg
-    signal = np.frombuffer(decode_to_memory(filename, fmt=fmt,
-                                            sample_rate=sample_rate,
-                                            num_channels=num_channels,
-                                            channel=channel,
-                                            skip=start, max_len=max_len,
-                                            cmd=cmd_decode,
-                                            replaygain_mode=replaygain_mode,
-                                            replaygain_preamp=replaygain_preamp
-                                            ),
-                           dtype=dtype)
+    signal = np.frombuffer(
+        decode_to_memory(filename, fmt=fmt, sample_rate=sample_rate,
+                         num_channels=num_channels, channel=channel,
+                         skip=start, max_len=max_len,
+                         cmd_decode=cmd_decode, cmd_probe=cmd_probe,
+                         replaygain_mode=replaygain_mode,
+                         replaygain_preamp=replaygain_preamp
+                         ),
+        dtype=dtype)
     # get the needed information from the file
     if sample_rate is None or num_channels is None:
         info = get_file_info(filename, cmd=cmd_probe)

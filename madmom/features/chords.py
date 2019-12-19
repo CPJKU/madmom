@@ -255,8 +255,7 @@ class CRFChordRecognitionProcessor(SequentialProcessor):
 
     >>> feats = featproc('tests/data/audio/sample2.wav')
     >>> decode(feats)
-    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +IGNORE_UNICODE
-    ... # doctest: +NORMALIZE_ARRAYS
+    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +NORMALIZE_ARRAYS
     array([(0. , 0.2, 'N'), (0.2, 1.6, 'F:maj'),
            (1.6, 2.4..., 'A:maj'), (2.4..., 4.1, 'D:min')],
           dtype=[('start', '<f8'), ('end', '<f8'), ('label', 'O')])
@@ -266,8 +265,7 @@ class CRFChordRecognitionProcessor(SequentialProcessor):
     >>> from madmom.processors import SequentialProcessor
     >>> chordrec = SequentialProcessor([featproc, decode])
     >>> chordrec('tests/data/audio/sample2.wav')
-    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +IGNORE_UNICODE
-    ... # doctest: +NORMALIZE_ARRAYS
+    ... # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +NORMALIZE_ARRAYS
     array([(0. , 0.2, 'N'), (0.2, 1.6, 'F:maj'),
            (1.6, 2.4..., 'A:maj'), (2.4..., 4.1, 'D:min')],
           dtype=[('start', '<f8'), ('end', '<f8'), ('label', 'O')])
