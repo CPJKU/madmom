@@ -20,7 +20,7 @@ import itertools as it
 import multiprocessing as mp
 import os
 import sys
-from collections import MutableSequence
+from collections.abc import MutableSequence
 
 import madmom
 import numpy as np
