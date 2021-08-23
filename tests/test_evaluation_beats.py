@@ -173,9 +173,9 @@ class TestFindLongestContinuousSegmentFunction(unittest.TestCase):
 
     def test_errors(self):
         # events must be correct type
-        with self.assertRaises(IndexError):
+        with self.assertRaises((IndexError, ValueError)):
             find_longest_continuous_segment(None)
-        with self.assertRaises(IndexError):
+        with self.assertRaises((IndexError, ValueError)):
             find_longest_continuous_segment(1)
 
     def test_values(self):
