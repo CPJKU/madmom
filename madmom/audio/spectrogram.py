@@ -1112,7 +1112,7 @@ class SpectrogramDifferenceProcessor(Processor):
         args.update(kwargs)
         # calculate the number of diff frames
         if self.diff_frames is None:
-            # Note: use diff_ration from args, not self.diff_ratio
+            # Note: use diff_ratio from args, not self.diff_ratio
             self.diff_frames = _diff_frames(
                 args['diff_ratio'], frame_size=data.stft.frames.frame_size,
                 hop_size=data.stft.frames.hop_size, window=data.stft.window)
