@@ -1,9 +1,6 @@
 language: python
 matrix:
   include:
-    - python: 2.7
-      dist: xenial
-      sudo: required
     - python: 3.5
       dist: xenial
       sudo: required
@@ -11,6 +8,12 @@ matrix:
       dist: xenial
       sudo: required
     - python: 3.7
+      dist: xenial
+      sudo: required
+    - python: 3.8
+      dist: xenial
+      sudo: required
+    - python: 3.9
       dist: xenial
       sudo: required
 before_install:
