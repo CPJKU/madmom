@@ -837,12 +837,41 @@ class TestFilterbankClass(unittest.TestCase):
 class TestFilterbankProcessorClass(unittest.TestCase):
 
     def setUp(self):
-        self.processor = FilterbankProcessor.from_filters(
-            TestFilterbankClass.triang_filters, np.arange(100))
+        self.processor = FilterbankProcessor(
+            filterbank=LogarithmicFilterbank,
+            bin_frequencies=np.arange(20) * 10)
+
+    def test_filterbank(self):
+        self.assertTrue(np.allclose(
+            np.nonzero(self.processor.filterbank),
+            (np.arange(4, 19), np.arange(15))))
+        self.assertTrue(np.sum(self.processor.filterbank[:4]) == 0)
+        self.assertTrue(np.allclose(self.processor.filterbank[4:19],
+                                    np.diag(np.full(15, 1))))
+        self.assertTrue(np.sum(self.processor.filterbank[19]) == 0)
 
     def test_process(self):
-        result = self.processor.process(np.zeros((20, 100)))
-        self.assertTrue(np.allclose(result, np.zeros((20, 4))))
+        result = self.processor.process(np.zeros((100, 20)))
+        self.assertTrue(np.allclose(result, np.zeros((100, 15))))
+
+    def test_literal_types(self):
+        fb = FilterbankProcessor('Mel', bin_frequencies=np.arange(5),
+                                 fmin=0, fmax=4)
+        self.assertTrue(isinstance(fb.filterbank, MelFilterbank))
+        self.assertTrue(np.allclose(np.nonzero(fb.filterbank),
+                                    ([1, 2, 3], [0, 1, 2])))
+        fb = FilterbankProcessor('bark', bin_frequencies=np.arange(15000))
+        self.assertTrue(isinstance(fb.filterbank, BarkFilterbank))
+        fb = FilterbankProcessor('LOGARITHMIC', bin_frequencies=np.arange(500))
+        self.assertTrue(isinstance(fb.filterbank, LogarithmicFilterbank))
+        fb = FilterbankProcessor('semitone', bin_frequencies=np.arange(500))
+        self.assertTrue(isinstance(fb.filterbank, LogarithmicFilterbank))
+        self.assertEqual(fb.filterbank.num_bands, 48)
+        fb = FilterbankProcessor('quartertone', bin_frequencies=np.arange(500))
+        self.assertTrue(isinstance(fb.filterbank, LogarithmicFilterbank))
+        self.assertEqual(fb.filterbank.num_bands, 96)
+        with self.assertRaises(ValueError):
+            fb = FilterbankProcessor('foo', bin_frequencies=np.arange(500))
 
 
 class TestMelFilterbankClass(unittest.TestCase):

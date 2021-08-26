@@ -101,6 +101,34 @@ class TestStftFunction(unittest.TestCase):
         res = [3. + 0.j, 4. + 0.j, 6. + 0.j]
         self.assertTrue(np.allclose(result[:, 0], res))
 
+    def test_complex(self):
+        result = stft(sig_2d, window=None, fft_size=25, complex=False)
+        self.assertTrue(result.dtype == np.float32)
+        self.assertTrue(result.shape == (3, 12))
+        self.assertTrue(np.allclose(result[:, 0], [3, 4, 6]))
+
+    def test_filterbank(self):
+        fb = np.diag(np.full(12, 1))
+        result = stft(sig_2d, window=None, fft_size=25, filterbank=fb)
+        self.assertTrue(result.dtype == np.float32)
+        self.assertTrue(result.shape == (3, 12))
+        self.assertTrue(np.allclose(result[:, 0], [3, 4, 6]))
+        # smaller filterbank
+        result = stft(sig_2d, window=None, fft_size=25, filterbank=fb[:, :6])
+        self.assertTrue(result.dtype == np.float32)
+        self.assertTrue(result.shape == (3, 6))
+        self.assertTrue(np.allclose(result[:, 0], [3, 4, 6]))
+
+    def test_block_processing(self):
+        result = stft(sig_2d, window=None, fft_size=25)
+        self.assertTrue(result.dtype == np.complex64)
+        self.assertTrue(result.shape == (3, 12))
+        self.assertTrue(np.allclose(result[:, 0], [3, 4, 6]))
+        result_1 = stft(sig_2d, window=None, fft_size=25, block_size=None)
+        self.assertTrue(np.allclose(result, result_1))
+        result_2 = stft(sig_2d, window=None, fft_size=25, block_size=2)
+        self.assertTrue(np.allclose(result, result_2))
+
 
 class TestPhaseFunction(unittest.TestCase):
 

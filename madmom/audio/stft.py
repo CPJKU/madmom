@@ -24,6 +24,7 @@ from ..processors import Processor
 from .signal import Signal, FramedSignal
 
 STFT_DTYPE = np.complex64
+SPEC_DTYPE = np.abs(np.empty(0, dtype=STFT_DTYPE)).dtype
 
 
 def fft_frequencies(num_fft_bins, sample_rate):
@@ -47,9 +48,10 @@ def fft_frequencies(num_fft_bins, sample_rate):
 
 
 def stft(frames, window, fft_size=None, circular_shift=False,
-         include_nyquist=False, fftw=None):
+         include_nyquist=False, complex=True, fftw=None, filterbank=None,
+         block_size=2048):
     """
-    Calculates the complex Short-Time Fourier Transform (STFT) of the given
+    Calculates the (complex) Short-Time Fourier Transform (STFT) of the given
     framed signal.
 
     Parameters
@@ -67,14 +69,22 @@ def stft(frames, window, fft_size=None, circular_shift=False,
         needed for correct phase.
     include_nyquist : bool, optional
         Include the Nyquist frequency bin (sample rate / 2) in returned STFT.
+    complex : bool, optional
+        Compute the complex STFT, if False, take the absolute values (i.e.
+        compute the magnitudes of the STFT).
     fftw : :class:`pyfftw.FFTW` instance, optional
         If a :class:`pyfftw.FFTW` object is given it is used to compute the
         STFT with the FFTW library. Requires 'pyfftw'.
+    filterbank : :class:`.audio.filters.Filterbank`, optional
+        If a filterbank is given, the magnitudes of the STFT are filtered. This
+        option automatically sets `complex` and `circular_shift` to 'False'.
 
     Returns
     -------
-    stft : numpy array, shape (num_frames, frame_size)
-        The complex STFT of the framed signal.
+    stft : numpy array, shape (num_frames, num_bins)
+        The (complex) STFT of the framed signal. 'num_bins' depends on the
+        parameters given, either 'frame_size' or 'fft_size' / 2 (+1 in case
+        the Nyquist frequency is included) or 'num_bands' of the filterbank.
 
     """
     # check for correct shape of input
@@ -98,8 +108,29 @@ def stft(frames, window, fft_size=None, circular_shift=False,
     if circular_shift:
         fft_shift = frame_size >> 1
 
-    # init objects
-    data = np.empty((num_frames, num_fft_bins), STFT_DTYPE)
+    # init return objects
+    if isinstance(filterbank, np.ndarray):
+        data = np.empty((num_frames, filterbank.shape[1]), dtype=SPEC_DTYPE)
+        # process in blocks of this size
+        if block_size is None:
+            block_size = num_frames
+        # iterate over the frames in blocks of the given size
+        for b, start in enumerate(range(0, num_frames, block_size)):
+            # determine stop index of the block
+            stop = min(start + block_size, num_frames)
+            # compute STFT of block by recursively calling stft()
+            # Note: do not pass filterbank so that each block is processed
+            #       frame by frame
+            dft = stft(frames[start: stop], window=window,
+                       fft_size=fft_size, include_nyquist=include_nyquist,
+                       complex=False, fftw=fftw)
+            # filter that block and put it in the return data
+            data[start: stop] = np.dot(dft, filterbank)
+        return data
+    elif complex:
+        data = np.empty((num_frames, num_fft_bins), dtype=STFT_DTYPE)
+    else:
+        data = np.empty((num_frames, num_fft_bins), dtype=SPEC_DTYPE)
 
     # iterate over all frames
     for f, frame in enumerate(frames):
@@ -126,9 +157,13 @@ def stft(frames, window, fft_size=None, circular_shift=False,
                 fft_signal = frame
         # perform DFT
         if fftw:
-            data[f] = fftw(fft_signal)[:num_fft_bins]
+            dft = fftw(fft_signal)[:num_fft_bins]
         else:
-            data[f] = fftpack.fft(fft_signal, fft_size, axis=0)[:num_fft_bins]
+            dft = fftpack.fft(fft_signal, fft_size, axis=0)[:num_fft_bins]
+        # save only the magnitudes
+        if not complex:
+            dft = np.abs(dft)
+        data[f] = dft
     # return STFT
     return data
 
@@ -219,10 +254,16 @@ class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
         needed for correct phase.
     include_nyquist : bool, optional
         Include the Nyquist frequency bin (sample rate / 2).
+    complex : bool, optional
+        Compute the complex STFT, if False, take the absolute values (i.e.
+        compute the magnitudes of the STFT).
     fftw : :class:`pyfftw.FFTW` instance, optional
         If a :class:`pyfftw.FFTW` object is given it is used to compute the
         STFT with the FFTW library. If 'None', a new :class:`pyfftw.FFTW`
         object is built. Requires 'pyfftw'.
+    filterbank : :class:`.audio.filters.Filterbank`, optional
+        If a filterbank is given, the magnitudes of the STFT are filtered. This
+        option automatically sets `complex` and `circular_shift` to 'False'.
     kwargs : dict, optional
         If no :class:`.audio.signal.FramedSignal` instance was given, one is
         instantiated with these additional keyword arguments.
@@ -309,14 +350,14 @@ frame_size=2048, fps=100, sample_rate=22050)
     # pylint: disable=attribute-defined-outside-init
 
     def __init__(self, frames, window=np.hanning, fft_size=None,
-                 circular_shift=False, include_nyquist=False, fft_window=None,
-                 fftw=None, **kwargs):
+                 circular_shift=False, include_nyquist=False, complex=True,
+                 filterbank=None, fft_window=None, fftw=None, **kwargs):
         # this method is for documentation purposes only
         pass
 
     def __new__(cls, frames, window=np.hanning, fft_size=None,
-                circular_shift=False, include_nyquist=False, fft_window=None,
-                fftw=None, **kwargs):
+                circular_shift=False, include_nyquist=False, complex=True,
+                filterbank=None, fft_window=None, fftw=None, **kwargs):
         # pylint: disable=unused-argument
         if isinstance(frames, ShortTimeFourierTransform):
             # already a STFT, use the frames thereof
@@ -358,7 +399,8 @@ frame_size=2048, fps=100, sample_rate=22050)
         # calculate the STFT
         data = stft(frames, fft_window, fft_size=fft_size,
                     circular_shift=circular_shift,
-                    include_nyquist=include_nyquist, fftw=fftw)
+                    include_nyquist=include_nyquist, complex=complex,
+                    filterbank=filterbank, fftw=fftw)
 
         # cast as ShortTimeFourierTransform
         obj = np.asarray(data).view(cls)
@@ -446,6 +488,9 @@ class ShortTimeFourierTransformProcessor(Processor):
         needed for correct phase.
     include_nyquist : bool, optional
         Include the Nyquist frequency bin (sample rate / 2).
+    complex : bool, optional
+        Compute the complex STFT, if False, take the absolute values (i.e.
+        compute the magnitudes of the STFT).
 
     Examples
     --------
@@ -470,12 +515,18 @@ class ShortTimeFourierTransformProcessor(Processor):
     """
 
     def __init__(self, window=np.hanning, fft_size=None, circular_shift=False,
-                 include_nyquist=False, **kwargs):
+                 include_nyquist=False, complex=True, filterbank=None,
+                 **kwargs):
         # pylint: disable=unused-argument
+        from .filters import FilterbankProcessor
         self.window = window
         self.fft_size = fft_size
         self.circular_shift = circular_shift
         self.include_nyquist = include_nyquist
+        self.complex = complex
+        if isinstance(filterbank, FilterbankProcessor):
+            filterbank = filterbank.filterbank
+        self.filterbank = filterbank
         # caching only, not intended for general use
         self.fft_window = None
         self.fftw = None
@@ -497,15 +548,16 @@ class ShortTimeFourierTransformProcessor(Processor):
             :class:`ShortTimeFourierTransform` instance.
 
         """
+        args = dict(window=self.window, fft_size=self.fft_size,
+                    circular_shift=self.circular_shift,
+                    include_nyquist=self.include_nyquist, complex=self.complex,
+                    filterbank=self.filterbank, fft_window=self.fft_window,
+                    fftw=self.fftw)
+        args.update(kwargs)
         # instantiate a STFT
-        data = ShortTimeFourierTransform(data, window=self.window,
-                                         fft_size=self.fft_size,
-                                         circular_shift=self.circular_shift,
-                                         include_nyquist=self.include_nyquist,
-                                         fft_window=self.fft_window,
-                                         fftw=self.fftw, **kwargs)
-        # cache the window used for FFT
-        # Note: depending on the signal this may be scaled already
+        data = ShortTimeFourierTransform(data, **args)
+        # cache the FFT window and FFTW object
+        # Note: depending on the signal window may be scaled already
         self.fft_window = data.fft_window
         self.fftw = data.fftw
         return data

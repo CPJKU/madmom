@@ -78,24 +78,27 @@ class CNNKeyRecognitionProcessor(SequentialProcessor):
     def __init__(self, nn_files=None, **kwargs):
         from ..audio.signal import SignalProcessor, FramedSignalProcessor
         from ..audio.stft import ShortTimeFourierTransformProcessor
-        from ..audio.spectrogram import LogarithmicFilteredSpectrogramProcessor
+        from ..audio.filters import FilterbankProcessor, LogarithmicFilterbank
+        from ..audio.spectrogram import ScalingProcessor
         from ..ml.nn import NeuralNetworkEnsemble
         from ..ml.nn.activations import softmax
         from ..models import KEY_CNN
-
+        # set parameters
+        kwargs['sample_rate'] = 44100
+        kwargs['num_channels'] = 1
+        kwargs['frame_size'] = 8192
         # spectrogram computation
-        sig = SignalProcessor(num_channels=1, sample_rate=44100)
-        frames = FramedSignalProcessor(frame_size=8192, fps=5)
-        stft = ShortTimeFourierTransformProcessor()  # caching FFT window
-        spec = LogarithmicFilteredSpectrogramProcessor(
-            num_bands=24, fmin=65, fmax=2100, unique_filters=True
-        )
-
+        sig = SignalProcessor(**kwargs)
+        frames = FramedSignalProcessor(fps=5, **kwargs)
+        filt = FilterbankProcessor(LogarithmicFilterbank, num_bands=24,
+                                   fmin=65, fmax=2100, unique_filters=True,
+                                   **kwargs)
+        stft = ShortTimeFourierTransformProcessor(filterbank=filt)
+        log = ScalingProcessor(scaling_fn=np.log10, add=1)
         # neural network
         nn_files = nn_files or KEY_CNN
         nn = NeuralNetworkEnsemble.load(nn_files)
-
         # create processing pipeline
         super(CNNKeyRecognitionProcessor, self).__init__([
-            sig, frames, stft, spec, nn, add_axis, softmax
+            sig, frames, stft, log, nn, add_axis, softmax
         ])

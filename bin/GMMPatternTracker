@@ -88,6 +88,7 @@ def main():
     args.positive_diffs = True
     args.crossover_frequencies = [270]
     args.pattern_files = PATTERNS_BALLROOM
+    args.complex = False
 
     # print arguments
     if args.verbose:
