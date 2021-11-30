@@ -290,7 +290,7 @@ class DBNDownBeatTrackingProcessor(Processor):
         positions = st.state_positions[path]
         # corresponding beats (add 1 for natural counting)
         beat_numbers = positions.astype(int) + 1
-        if self.correct:
+        if len(path) > 0 and self.correct:
             beats = np.empty(0, dtype=np.int)
             # for each detection determine the "beat range", i.e. states where
             # the pointers of the observation model are >= 1
