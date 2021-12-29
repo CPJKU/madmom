@@ -11,13 +11,13 @@ matrix:
       dist: xenial
       sudo: required
     - python: 3.8
-      dist: xenial
+      dist: focal
       sudo: required
     - python: 3.9
-      dist: xenial
+      dist: focal
       sudo: required
     - python: 3.10
-      dist: xenial
+      dist: focal
       sudo: required
 before_install:
   # get a working ffmpeg
