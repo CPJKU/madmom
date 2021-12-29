@@ -16,6 +16,9 @@ matrix:
     - python: 3.9
       dist: xenial
       sudo: required
+    - python: 3.10
+      dist: xenial
+      sudo: required
 before_install:
   # get a working ffmpeg
   - sudo wget -O ffmpeg.tar.gz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
