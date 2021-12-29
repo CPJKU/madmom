@@ -20,6 +20,7 @@ except ImportError:
 import numpy as np
 
 from . import ANNOTATIONS_PATH, DETECTIONS_PATH
+from madmom.evaluation.beats import BeatIntervalError
 
 eval_script = os.path.dirname(os.path.realpath(__file__)) + '/../bin/evaluate'
 
@@ -66,12 +67,9 @@ class TestEvaluateScript(unittest.TestCase):
                                           0.875, 0.875, 3.322, 3.322]))
 
     def test_downbeats(self):
-        res = run_script('beats', det_suffix='.dbn_downbeat_tracker.txt',
-                         args=['--down'])
-        # second line contains the results
-        res = np.fromiter(res[1].split(',')[1:], dtype=float)
-        self.assertTrue(np.allclose(res, [0.667, 0.5, 0.653, 1, 0, 0,
-                                          0.875, 0.875, 3.072, 3.072]))
+        with self.assertRaises(BeatIntervalError):
+            run_script('beats', det_suffix='.dbn_downbeat_tracker.txt',
+                       args=['--down'])
 
     def test_chords(self):
         res = run_script('chords')

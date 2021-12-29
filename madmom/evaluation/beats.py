@@ -36,7 +36,6 @@ import numpy as np
 from . import (MeanEvaluation, calc_absolute_errors, calc_errors,
                evaluation_io, find_closest_matches)
 from .onsets import OnsetEvaluation
-from ..io import load_beats
 
 
 # exceptions
@@ -1031,13 +1030,16 @@ class BeatEvaluation(OnsetEvaluation):
         # use only the first column (i.e. the time stamp) or extract the
         # downbeats if these are 2D
         if detections.ndim > 1:
-            if downbeats:
+            if downbeats and detections.any():
                 detections = detections[detections[:, 1] == 1][:, 0]
             else:
                 detections = detections[:, 0]
         if annotations.ndim > 1:
-            if downbeats:
-                annotations = annotations[annotations[:, 1] == 1][:, 0]
+            if downbeats and annotations.any():
+                try:
+                    annotations = annotations[annotations[:, 1] == 1][:, 0]
+                except IndexError:
+                    annotations = np.empty(0)
             else:
                 annotations = annotations[:, 0]
         # sort them
@@ -1193,7 +1195,7 @@ def add_parser(parser):
     ''')
     # set defaults
     p.set_defaults(eval=BeatEvaluation, sum_eval=None,
-                   mean_eval=BeatMeanEvaluation, load_fn=load_beats)
+                   mean_eval=BeatMeanEvaluation, load_fn=np.loadtxt)
     # file I/O
     evaluation_io(p, ann_suffix='.beats', det_suffix='.beats.txt')
     # parameters for sequence variants

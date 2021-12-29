@@ -295,6 +295,9 @@ class DBNDownBeatTrackingProcessor(Processor):
             # for each detection determine the "beat range", i.e. states where
             # the pointers of the observation model are >= 1
             beat_range = om.pointers[path] >= 1
+            # if there aren't any in the beat range, there are no beats
+            if not beat_range.any():
+                return np.empty((0, 2))
             # get all change points between True and False (cast to int before)
             idx = np.nonzero(np.diff(beat_range.astype(int)))[0] + 1
             # if the first frame is in the beat range, add a change at frame 0
