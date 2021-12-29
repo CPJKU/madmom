@@ -49,7 +49,7 @@ install:
 before_script:
   - pep8 --ignore=E402 madmom tests bin
 script:
-  - pytest --cov --doctest-modules --doctest-ignore-import-errors madmom tests
+  - pytest --cov --doctest-ignore-import-errors madmom tests
 after_success:
   - codecov
   - coveralls
