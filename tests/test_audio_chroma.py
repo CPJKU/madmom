@@ -76,7 +76,7 @@ class TestCLPChromaClass(unittest.TestCase):
         self.assertTrue(self.clp_22050.shape == (141, 12))
         tar = [[0.11270745, 0, 0, 0, 0.25741291, 0.58624929, 0.43997279,
                 0.0999583, 0.21696206, 0.54994475, 0.05542545, 0.14558826]]
-        self.assertTrue(np.allclose(self.clp_22050[140, :], tar))
+        self.assertTrue(np.allclose(self.clp_22050[140, :], tar, atol=1e-4))
 
     def test_compare_with_matlab_toolbox(self):
         # compare the results with the MATLAB chroma toolbox. There are
