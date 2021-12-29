@@ -719,7 +719,7 @@ class TestSemitoneBandpassSpectrogramClass(unittest.TestCase):
                                     [[0.00056659, 0.00274373, 0.00037994,
                                       0.00031497, 0.0063823],
                                      [0.00032294, 0.00285728, 0.00023723,
-                                      0.00010553, 0.0069074]]))
+                                      0.00010553, 0.0069074]], atol=1e-04))
         self.assertTrue(np.allclose(self.sbs_50[:10, 0],
                                     [0.00108844, 0.0020613, 0.00187792,
                                      0.00173228, 0.00163516, 0.00149813,
@@ -729,17 +729,18 @@ class TestSemitoneBandpassSpectrogramClass(unittest.TestCase):
                                     [0.05326259, 0.10912816, 0.11616101,
                                      0.11595627, 0.11979639, 0.12206492,
                                      0.12836982, 0.12495992, 0.11759637,
-                                     0.10559082]))
+                                     0.10559082], atol=1e-04))
         # test fps = 10
         self.assertTrue(self.sbs_10.fps == 10)
         self.assertTrue(self.sbs_10.shape == (29, 88))
         sbs_10 = [[0.01951193, 0.01638364, 0.00384092, 0.00732366, 0.10310112],
                   [0.14484727, 0.032042, 0.00719009, 0.02043642, 0.06407038]]
-        self.assertTrue(np.allclose(self.sbs_10[10:12, 50:55], sbs_10))
+        self.assertTrue(np.allclose(self.sbs_10[10:12, 50:55], sbs_10,
+                        atol=1e-04))
         # test computing SemitoneBandpassSpectrogram from signal
         self.assertTrue(self.sbs_10_from_signal.shape == (29, 88))
         self.assertTrue(np.allclose(self.sbs_10_from_signal[10:12, 50:55],
-                                    sbs_10))
+                                    sbs_10, atol=1e-04))
         # test 22050 Hz sampling rate. If we use only bands above 2637 Hz,
         # no resampling is necessary and we can therefore compare with
         # smaller tolerances.
@@ -748,12 +749,13 @@ class TestSemitoneBandpassSpectrogramClass(unittest.TestCase):
                 0.05898506, 0.03190501, 0.04980498, 0.07482897],
                [0.07191198, 0.07706247, 0.05581443, 0.03765683, 0.04524021,
                 0.03835757, 0.0295172, 0.04417975, 0.06682143]]
-        self.assertTrue(np.allclose(self.sbs_22050[108:110, :], tar))
+        self.assertTrue(np.allclose(self.sbs_22050[108:110, :], tar,
+                        atol=1e-04))
         # check end of signal
         tar = [9.44913489e-06, 2.15330783e-05, 1.61559697e-05, 3.66821812e-06,
                7.96367061e-06, 2.01982581e-05, 2.03380816e-06, 5.34317005e-06,
                4.13617626e-06]
-        self.assertTrue(np.allclose(self.sbs_22050[140, :], tar))
+        self.assertTrue(np.allclose(self.sbs_22050[140, :], tar, atol=1e-04))
 
     def test_compare_with_matlab_toolbox(self):
         # compare the results with the MATLAB chroma toolbox. There are
