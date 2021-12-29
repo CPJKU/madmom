@@ -57,7 +57,7 @@ class TestCLPChromaClass(unittest.TestCase):
         tar = [0.62827758, 0.63810707, 0.64559874, 0.63725388, 0.60231739,
                0.56549827, 0.49675867, 0.40509999, 0.38589308, 0.39961286,
                0.43776578]
-        self.assertTrue(np.allclose(self.clp_50[100:111, 8], tar, atol=1e-5))
+        self.assertTrue(np.allclose(self.clp_50[100:111, 8], tar, atol=1e-4))
         # test with fps=10
         self.assertTrue(self.clp_10.bin_labels[0] == 'C')
         self.assertTrue(self.clp_10.fps == 10)

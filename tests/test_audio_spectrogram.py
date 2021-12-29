@@ -719,7 +719,7 @@ class TestSemitoneBandpassSpectrogramClass(unittest.TestCase):
                                     [[0.00056659, 0.00274373, 0.00037994,
                                       0.00031497, 0.0063823],
                                      [0.00032294, 0.00285728, 0.00023723,
-                                      0.00010553, 0.0069074]]))
+                                      0.00010553, 0.0069074]], atol=1e-04))
         self.assertTrue(np.allclose(self.sbs_50[:10, 0],
                                     [0.00108844, 0.0020613, 0.00187792,
                                      0.00173228, 0.00163516, 0.00149813,
@@ -729,7 +729,7 @@ class TestSemitoneBandpassSpectrogramClass(unittest.TestCase):
                                     [0.05326259, 0.10912816, 0.11616101,
                                      0.11595627, 0.11979639, 0.12206492,
                                      0.12836982, 0.12495992, 0.11759637,
-                                     0.10559082]))
+                                     0.10559082], atol=1e-04))
         # test fps = 10
         self.assertTrue(self.sbs_10.fps == 10)
         self.assertTrue(self.sbs_10.shape == (29, 88))

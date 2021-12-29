@@ -10,7 +10,7 @@ matrix:
     - python: 3.9
       dist: focal
       sudo: required
-    - python: 3.10
+    - python: 3.10-dev
       dist: focal
       sudo: required
 before_install:
