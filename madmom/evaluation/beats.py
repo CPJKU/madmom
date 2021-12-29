@@ -68,8 +68,8 @@ def array(metric):
     def float_array(detections, annotations, *args, **kwargs):
         """Warp detections and annotations as numpy arrays."""
         # make sure the annotations and detections have a float dtype
-        detections = np.asarray(detections, dtype=np.float)
-        annotations = np.asarray(annotations, dtype=np.float)
+        detections = np.asarray(detections, dtype=float)
+        annotations = np.asarray(annotations, dtype=float)
         return metric(detections, annotations, *args, **kwargs)
 
     return float_array
@@ -264,7 +264,7 @@ def find_closest_intervals(detections, annotations, matches=None):
     """
     # if no detection are given, return an empty interval array
     if len(detections) == 0:
-        return np.zeros(0, dtype=np.float)
+        return np.zeros(0, dtype=float)
     # at least annotations must be given
     if len(annotations) < 2:
         raise BeatIntervalError
@@ -354,7 +354,7 @@ def calc_relative_errors(detections, annotations, matches=None):
     """
     # if no detection are given, return an empty interval array
     if len(detections) == 0:
-        return np.zeros(0, dtype=np.float)
+        return np.zeros(0, dtype=float)
     # at least annotations must be given
     if len(annotations) < 2:
         raise BeatIntervalError
@@ -806,7 +806,7 @@ def _error_histogram(detections, annotations, histogram_bins):
     # map the relative beat errors to the range of -0.5..0.5
     errors = np.mod(errors + 0.5, -1) + 0.5
     # get bin counts for the given errors over the distribution
-    histogram = np.histogram(errors, histogram_bins)[0].astype(np.float)
+    histogram = np.histogram(errors, histogram_bins)[0].astype(float)
     # make the histogram circular by adding the last bin to the first one
     histogram[0] += histogram[-1]
     # return the histogram without the last bin
@@ -829,7 +829,7 @@ def _entropy(error_histogram):
 
     """
     # copy the error_histogram, because it must not be altered
-    histogram = np.copy(error_histogram).astype(np.float)
+    histogram = np.copy(error_histogram).astype(float)
     # normalize the histogram
     histogram /= np.sum(histogram)
     # set all 0 values to 1 to make entropy calculation well-behaved
@@ -1026,8 +1026,8 @@ class BeatEvaluation(OnsetEvaluation):
                  offbeat=True, double=True, triple=True, skip=0,
                  downbeats=False, **kwargs):
         # convert to numpy array
-        detections = np.array(detections, dtype=np.float, ndmin=1)
-        annotations = np.array(annotations, dtype=np.float, ndmin=1)
+        detections = np.array(detections, dtype=float, ndmin=1)
+        annotations = np.array(annotations, dtype=float, ndmin=1)
         # use only the first column (i.e. the time stamp) or extract the
         # downbeats if these are 2D
         if detections.ndim > 1:

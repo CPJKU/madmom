@@ -634,7 +634,7 @@ class TestHistogramBinsHelperFunction(unittest.TestCase):
     def test_types(self):
         bins = _histogram_bins(40)
         self.assertIsInstance(bins, np.ndarray)
-        self.assertTrue(bins.dtype == np.float)
+        self.assertTrue(bins.dtype == float)
 
     def test_errors(self):
         # bins must be even and greater or equal than 2
@@ -662,7 +662,7 @@ class TestErrorHistogramHelperFunction(unittest.TestCase):
         bins = _histogram_bins(4)
         hist = _error_histogram(DETECTIONS, ANNOTATIONS, bins)
         self.assertIsInstance(hist, np.ndarray)
-        self.assertTrue(hist.dtype == np.float)
+        self.assertTrue(hist.dtype == float)
 
     def test_values(self):
         # first bin maps the ±0.5 interval error, the second the 0

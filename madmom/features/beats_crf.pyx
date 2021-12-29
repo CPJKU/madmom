@@ -69,7 +69,7 @@ def transition_distribution(interval, interval_sigma):
     """
     from scipy.stats import norm
 
-    move_range = np.arange(interval * 2, dtype=np.float)
+    move_range = np.arange(interval * 2, dtype=float)
     # to avoid floating point hell due to np.log2(0)
     move_range[0] = 0.000001
 
@@ -182,9 +182,9 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
     # previous viterbi variables. will be initialized with prior (first beat)
     cdef float [::1] v_p = np.empty(num_st, dtype=np.float32)
     # back-tracking pointers;
-    cdef long [:, ::1] bps = np.empty((num_x - 1, num_st), dtype=np.int)
+    cdef long [:, ::1] bps = np.empty((num_x - 1, num_st), dtype=int)
     # back tracked path, a.k.a. path sequence
-    cdef long [::1] path = np.empty(num_x, dtype=np.int)
+    cdef long [::1] path = np.empty(num_x, dtype=int)
 
     # counters etc.
     cdef int k, i, j, next_state

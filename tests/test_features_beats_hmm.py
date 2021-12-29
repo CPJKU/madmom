@@ -25,11 +25,11 @@ class TestBeatStateSpaceClass(unittest.TestCase):
         self.assertIsInstance(bss.num_states, int)
         self.assertIsInstance(bss.num_intervals, int)
         # dtypes
-        self.assertTrue(bss.intervals.dtype == np.int)
-        self.assertTrue(bss.state_positions.dtype == np.float)
-        self.assertTrue(bss.state_intervals.dtype == np.int)
-        self.assertTrue(bss.first_states.dtype == np.int)
-        self.assertTrue(bss.last_states.dtype == np.int)
+        self.assertTrue(bss.intervals.dtype == int)
+        self.assertTrue(bss.state_positions.dtype == float)
+        self.assertTrue(bss.state_intervals.dtype == int)
+        self.assertTrue(bss.first_states.dtype == int)
+        self.assertTrue(bss.last_states.dtype == int)
 
     def test_values(self):
         bss = BeatStateSpace(1, 4)
@@ -73,8 +73,8 @@ class TestBarStateSpaceClass(unittest.TestCase):
         self.assertIsInstance(bss.first_states, list)
         self.assertIsInstance(bss.last_states, list)
         # dtypes
-        self.assertTrue(bss.state_positions.dtype == np.float)
-        self.assertTrue(bss.state_intervals.dtype == np.int)
+        self.assertTrue(bss.state_positions.dtype == float)
+        self.assertTrue(bss.state_intervals.dtype == int)
 
     def test_values(self):
         # 2 beats, intervals 1 to 4
@@ -127,8 +127,8 @@ class TestMultiPatternStateSpaceClass(unittest.TestCase):
         # self.assertIsInstance(mpss.num_intervals, int)
         self.assertIsInstance(mpss.num_patterns, int)
         # dtypes
-        self.assertTrue(mpss.state_positions.dtype == np.float)
-        self.assertTrue(mpss.state_intervals.dtype == np.int)
+        self.assertTrue(mpss.state_positions.dtype == float)
+        self.assertTrue(mpss.state_intervals.dtype == int)
 
     def test_values_beat(self):
         # test with 2 BeatStateSpaces as before
@@ -223,8 +223,8 @@ class TestBeatTransitionModelClass(unittest.TestCase):
         self.assertIsInstance(tm.num_transitions, int)
         self.assertTrue(tm.states.dtype == np.uint32)
         self.assertTrue(tm.pointers.dtype == np.uint32)
-        self.assertTrue(tm.probabilities.dtype == np.float)
-        self.assertTrue(tm.log_probabilities.dtype == np.float)
+        self.assertTrue(tm.probabilities.dtype == float)
+        self.assertTrue(tm.log_probabilities.dtype == float)
 
     def test_values(self):
         bss = BeatStateSpace(1, 4)
@@ -259,8 +259,8 @@ class TestBarTransitionModelClass(unittest.TestCase):
         self.assertIsInstance(tm.num_transitions, int)
         self.assertTrue(tm.states.dtype == np.uint32)
         self.assertTrue(tm.pointers.dtype == np.uint32)
-        self.assertTrue(tm.probabilities.dtype == np.float)
-        self.assertTrue(tm.log_probabilities.dtype == np.float)
+        self.assertTrue(tm.probabilities.dtype == float)
+        self.assertTrue(tm.log_probabilities.dtype == float)
 
     def test_values(self):
         bss = BarStateSpace(2, 1, 4)
@@ -304,8 +304,8 @@ class TestMultiPatternTransitionModelClass(unittest.TestCase):
         self.assertIsInstance(tm.num_transitions, int)
         self.assertTrue(tm.states.dtype == np.uint32)
         self.assertTrue(tm.pointers.dtype == np.uint32)
-        self.assertTrue(tm.probabilities.dtype == np.float)
-        self.assertTrue(tm.log_probabilities.dtype == np.float)
+        self.assertTrue(tm.probabilities.dtype == float)
+        self.assertTrue(tm.log_probabilities.dtype == float)
 
     def test_values_beat(self):
         # test with 2 BeatStateSpaces
@@ -468,8 +468,8 @@ class TestRNNBeatTrackingObservationModelClass(unittest.TestCase):
         self.assertIsInstance(self.om.densities(self.obs), np.ndarray)
         self.assertIsInstance(self.om.log_densities(self.obs), np.ndarray)
         self.assertTrue(self.om.pointers.dtype == np.uint32)
-        self.assertTrue(self.om.densities(self.obs).dtype == np.float)
-        self.assertTrue(self.om.log_densities(self.obs).dtype == np.float)
+        self.assertTrue(self.om.densities(self.obs).dtype == float)
+        self.assertTrue(self.om.log_densities(self.obs).dtype == float)
 
     def test_values(self):
         self.assertTrue(np.allclose(self.om.pointers,

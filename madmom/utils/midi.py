@@ -1517,7 +1517,7 @@ class MIDIFile(object):
                 cum_time = tempi[i - 1][2] + ticks * tempi[i - 1][1]
                 tempi[i] = (tempi[i][0], tempi[i][1], cum_time)
         # return tempo
-        return np.asarray(tempi, np.float)
+        return np.asarray(tempi, float)
 
     def time_signatures(self, suppress_warnings=False):
         """
@@ -1553,7 +1553,7 @@ class MIDIFile(object):
         if signatures[0][0] > 0:
             signatures.insert(0, (0, TIME_SIGNATURE))
         # return time signatures
-        return np.asarray(signatures, dtype=np.float)
+        return np.asarray(signatures, dtype=float)
 
     def notes(self, unit='s'):
         """
@@ -1617,7 +1617,7 @@ class MIDIFile(object):
                 tick = e.tick
 
         # sort the notes and convert to numpy array
-        notes = np.asarray(sorted(notes), dtype=np.float)
+        notes = np.asarray(sorted(notes), dtype=float)
 
         # convert onset times and durations from ticks to the requested unit
         # and return the notes

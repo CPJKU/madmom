@@ -47,19 +47,19 @@ class TestSpecFunction(unittest.TestCase):
 
     def test_types(self):
         result = spec(np.random.rand(10))
-        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.dtype == float)
         self.assertTrue(result.shape == (10, ))
         result = spec(np.random.rand(10, 2))
-        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.dtype == float)
         self.assertTrue(result.shape == (10, 2))
         # complex data
         data = np.random.rand(10) + 1j * np.random.rand(10)
         result = spec(data)
-        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.dtype == float)
         self.assertTrue(result.shape == (10, ))
         data = np.random.rand(10, 2) + 1j * np.random.rand(10, 2)
         result = spec(data)
-        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.dtype == float)
         self.assertTrue(result.shape == (10, 2))
 
     def test_values(self):

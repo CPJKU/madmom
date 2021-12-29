@@ -19,7 +19,7 @@ ENCODING = 'utf8'
 
 # dtype for numpy structured arrays that contain labelled segments
 # 'label' needs to be castable to str
-SEGMENT_DTYPE = [('start', np.float), ('end', np.float), ('label', object)]
+SEGMENT_DTYPE = [('start', float), ('end', float), ('label', object)]
 
 
 # overwrite the built-in open() to transparently apply some magic file handling

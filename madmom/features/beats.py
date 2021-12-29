@@ -718,7 +718,7 @@ class CRFBeatDetectionProcessor(BeatTrackingProcessor):
         best_seq = results[normalized_seq_probabilities.argmax()][0]
 
         # convert the detected beat positions to seconds and return them
-        return best_seq.astype(np.float) / self.fps
+        return best_seq.astype(float) / self.fps
 
     @staticmethod
     def add_arguments(parser, interval_sigma=INTERVAL_SIGMA,
@@ -945,7 +945,7 @@ class DBNBeatTrackingProcessor(OnlineProcessor):
 
         """
         # init the beats to return and the offset
-        beats = np.empty(0, dtype=np.int)
+        beats = np.empty(0, dtype=int)
         first = 0
         # use only the activations > threshold
         if self.threshold:

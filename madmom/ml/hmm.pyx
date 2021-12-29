@@ -188,7 +188,7 @@ class TransitionModel(object):
         # check for a proper probability distribution, i.e. the emission
         # probabilities of each prev_state must sum to 1
         states = np.asarray(states)
-        prev_states = np.asarray(prev_states, dtype=np.int)
+        prev_states = np.asarray(prev_states, dtype=int)
         probabilities = np.asarray(probabilities)
         if not np.allclose(np.bincount(prev_states, weights=probabilities), 1):
             raise ValueError('Not a probability distribution.')
@@ -201,7 +201,7 @@ class TransitionModel(object):
         # convert to correct types
         states = transitions.indices.astype(np.uint32)
         pointers = transitions.indptr.astype(np.uint32)
-        probabilities = transitions.data.astype(dtype=np.float)
+        probabilities = transitions.data.astype(dtype=float)
         # return them
         return states, pointers, probabilities
 
@@ -439,7 +439,7 @@ class HiddenMarkovModel(object):
         self.observation_model = observation_model
         if initial_distribution is None:
             initial_distribution = np.ones(transition_model.num_states,
-                                           dtype=np.float) / \
+                                           dtype=float) / \
                                    transition_model.num_states
         if not np.allclose(initial_distribution.sum(), 1):
             raise ValueError('Initial distribution is not a probability '
@@ -509,7 +509,7 @@ class HiddenMarkovModel(object):
 
         # current viterbi variables
         cdef double [::1] current_viterbi = np.empty(num_states,
-                                                     dtype=np.float)
+                                                     dtype=float)
 
         # previous viterbi variables, init with the initial state distribution
         cdef double [::1] previous_viterbi = np.log(self.initial_distribution)
@@ -627,7 +627,7 @@ class HiddenMarkovModel(object):
         # forward variables
         cdef double[::1] fwd_prev = self._prev
         cdef double[:, ::1] fwd = np.zeros((num_observations, num_states),
-                                           dtype=np.float)
+                                           dtype=float)
 
         # define counters etc.
         cdef unsigned int prev_pointer, frame, state
@@ -698,7 +698,7 @@ class HiddenMarkovModel(object):
         cdef double [:, ::1] om_densities
 
         # forward variables
-        cdef double[::1] fwd_cur = np.zeros(num_states, dtype=np.float)
+        cdef double[::1] fwd_cur = np.zeros(num_states, dtype=float)
         cdef double[::1] fwd_prev = self.initial_distribution.copy()
 
         # define counters etc.

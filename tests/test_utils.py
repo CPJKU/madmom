@@ -470,10 +470,10 @@ class TestSegmentAxisFunction(unittest.TestCase):
     def test_types(self):
         result = segment_axis(np.arange(10), 4, 2)
         self.assertIsInstance(result, np.ndarray)
-        self.assertTrue(result.dtype == np.int)
-        result = segment_axis(np.arange(10, dtype=np.float), 4, 2)
+        self.assertTrue(result.dtype == int)
+        result = segment_axis(np.arange(10, dtype=float), 4, 2)
         self.assertIsInstance(result, np.ndarray)
-        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.dtype == float)
         # test with a Signal
         from madmom.audio.signal import Signal
         signal = Signal(pj(AUDIO_PATH, 'sample.wav'))

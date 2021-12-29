@@ -489,7 +489,7 @@ class TestPadLayerClass(unittest.TestCase):
 
     def test_constant_padding(self):
         pl = layers.PadLayer(width=2, axes=(0, 1), value=10.)
-        data = np.arange(40).reshape(5, 4, 2).astype(np.float)
+        data = np.arange(40).reshape(5, 4, 2).astype(float)
         out = pl(data)
 
         self.assertEqual(out.shape, (9, 8, 2))

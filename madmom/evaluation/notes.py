@@ -92,8 +92,8 @@ def note_onset_evaluation(detections, annotations, window=WINDOW):
 
     """
     # make sure the arrays have the correct types and dimensions
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
+    detections = np.asarray(detections, dtype=float)
+    annotations = np.asarray(annotations, dtype=float)
     # check dimensions
     if detections.ndim != 2 or annotations.ndim != 2:
         raise ValueError('detections and annotations must be 2D arrays')
@@ -181,8 +181,8 @@ class NoteEvaluation(MultiClassEvaluation):
     def __init__(self, detections, annotations, window=WINDOW, delay=0,
                  **kwargs):
         # convert to numpy array
-        detections = np.array(detections, dtype=np.float, ndmin=2)
-        annotations = np.array(annotations, dtype=np.float, ndmin=2)
+        detections = np.array(detections, dtype=float, ndmin=2)
+        annotations = np.array(annotations, dtype=float, ndmin=2)
         # shift the detections if needed
         if delay != 0:
             detections[:, 0] += delay
