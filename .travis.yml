@@ -10,9 +10,6 @@ matrix:
     - python: 3.9
       dist: focal
       sudo: required
-    - python: 3.10-dev
-      dist: focal
-      sudo: required
 before_install:
   # get a working ffmpeg
   - sudo wget -O ffmpeg.tar.gz https://johnvansickle.com/ffmpeg/releases/ffmpeg-release-amd64-static.tar.xz
