@@ -46,6 +46,7 @@ class TestRNNClass(unittest.TestCase):
 
 
 class TestLSTMClass(unittest.TestCase):
+
     def setUp(self):
         # uni-directional LSTM-RNN
         self.rnn = NeuralNetwork.load(BEATS_LSTM[0])
@@ -368,6 +369,32 @@ class TestGRUClass(unittest.TestCase):
                                     [0.20934506, -0.25959042]))
         # initialisation must not change
         self.assertTrue(np.allclose(self.gru_1.init, [0, 0]))
+
+
+class TestMaxPoolLayerClass(unittest.TestCase):
+
+    def test_time_pooling(self):
+        layer = MaxPoolLayer(size=(2, 1))
+        out = layer(np.arange(20).reshape(5, 4))
+        self.assertEqual(out.shape, (2, 4))
+        self.assertTrue(np.allclose(out, [[4, 5, 6, 7],
+                                          [12, 13, 14, 15]]))
+
+    def test_freq_pooling(self):
+        layer = MaxPoolLayer(size=(1, 2))
+        out = layer(np.arange(20).reshape(5, 4))
+        self.assertEqual(out.shape, (5, 2))
+        self.assertTrue(np.allclose(out, [[1, 3], [5, 7], [9, 11],
+                                          [13, 15], [17, 19]]))
+
+    def test_max_pooling(self):
+        layer = MaxPoolLayer((3, 3))
+        out = layer(np.arange(20).reshape((5, 4, 1)))
+        self.assertTrue(np.allclose(out, [[[10]]]))
+        out = layer(np.arange(60).reshape((5, 4, 3)))
+        self.assertTrue(np.allclose(out, [[[30, 31, 32]]]))
+        out = layer(np.arange(80).reshape((5, 4, 4)))
+        self.assertTrue(np.allclose(out, [[[40, 41, 42, 43]]]))
 
 
 class TestBatchNormLayerClass(unittest.TestCase):

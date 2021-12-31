@@ -11,6 +11,7 @@ This module contains neural network layers for the ml.nn module.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+from scipy.ndimage.filters import maximum_filter
 
 from .activations import sigmoid, tanh
 
@@ -865,15 +866,25 @@ class MaxPoolLayer(Layer):
     stride : tuple, optional
         The strides between successive pooling regions in each dimension.
         If 'None' `stride` = `size`.
+    axis : int, optional
+        Pool along the given axis. If set, `size` is ignored.
 
     """
 
-    def __init__(self, size, stride=None, pad='valid'):
+    def __init__(self, size, stride=None, axis=None):
         self.size = size
         if stride is None:
             stride = size
         self.stride = stride
-        self.pad = pad
+        self.axis = axis
+
+    def __setstate__(self, state):
+        # restore pickled instance attributes
+        self.__dict__.update(state)
+        # TODO: old models do not have `axis`, thus create it
+        #       remove this initialisation code after updating the models
+        if not hasattr(self, 'axis'):
+            self.axis = None
 
     def activate(self, data, **kwargs):
         """
@@ -890,14 +901,23 @@ class MaxPoolLayer(Layer):
             Max pooled data.
 
         """
-        from scipy.ndimage.filters import maximum_filter
+        if self.axis is not None:
+            if self.stride is not None:
+                raise NotImplementedError('`axis` with `stride` not supported')
+            return np.max(data, axis=self.axis)
         # define which part of the maximum filtered data to return
-        slice_dim_1 = slice(self.size[0] // 2, None, self.stride[0])
-        slice_dim_2 = slice(self.size[1] // 2, None, self.stride[1])
+        slice_dim_1 = slice(self.size[0] // 2,
+                            data.shape[0] - (self.size[0] - 1) // 2,
+                            self.stride[0])
+        slice_dim_2 = slice(self.size[1] // 2,
+                            data.shape[1] - (self.size[1] - 1) // 2,
+                            self.stride[1])
+
         # TODO: is constant mode the most appropriate?
         if len(data.shape) == 2:
             # filter the data as is
-            return maximum_filter(data, self.size, mode='constant')
+            return maximum_filter(data, self.size,
+                                  mode='constant')[slice_dim_1, slice_dim_2]
         elif len(data.shape) == 3:
             # filter each channel separately
             data = [maximum_filter(data[:, :, c], self.size, mode='constant')
