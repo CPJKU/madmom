@@ -628,7 +628,7 @@ class RNNDownBeatTrackingObservationModel(ObservationModel):
         log_densities = np.empty((len(observations), 3), dtype=np.float)
         # Note: it's faster to call np.log multiple times instead of once on
         #       the whole 2d array
-        log_densities[:, 0] = np.log((1. - np.sum(observations, axis=1)) /
+        log_densities[:, 0] = np.log((1. - observations[:, 0]) /
                                      (self.observation_lambda - 1))
         log_densities[:, 1] = np.log(observations[:, 0])
         log_densities[:, 2] = np.log(observations[:, 1])
