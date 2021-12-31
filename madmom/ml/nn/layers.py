@@ -11,6 +11,7 @@ This module contains neural network layers for the ml.nn module.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+from scipy.ndimage import convolve as _scipy_convolve
 from scipy.ndimage.filters import maximum_filter
 
 from .activations import sigmoid, tanh
@@ -648,10 +649,9 @@ class GRULayer(RecurrentLayer):
         return out
 
 
-def _kernel_margins(kernel_shape, margin_shift):
+def _kernel_margins(kernel_shape, margin_shift, pad='valid'):
     """
-    Determine the margin that needs to be cut off when doing a "valid"
-    convolution.
+    Determine the margin that needs to be cut off when doing a convolution.
 
     Parameters
     ----------
@@ -659,12 +659,19 @@ def _kernel_margins(kernel_shape, margin_shift):
         Shape of the convolution kernel to determine the margins for
     margin_shift : bool
         Shift the borders by one pixel if kernel is of even size
+    pad : str, optional
+        Padding applied to the convolution, either 'valid' or 'same'.
 
     Returns
     -------
     start_x, end_x, start_y, end_y : tuple
         Indices determining the valid part of the convolution output.
     """
+
+    if pad == 'same':
+        return None, None, None, None
+    elif pad != 'valid':
+        raise NotImplementedError('only `pad` == "valid" implemented.')
 
     start_x = int(np.floor(kernel_shape[0] / 2.))
     start_y = int(np.floor(kernel_shape[1] / 2.))
@@ -696,28 +703,32 @@ try:
     # pylint: disable=wrong-import-order
     # pylint: disable=wrong-import-position
 
-    # if opencv is installed, use their convolution function, because
-    # it is much faster
-    from cv2 import filter2D as _do_convolve
+    # opencv's convolution is much faster for certain kernel sizes
+    from cv2 import filter2D, BORDER_CONSTANT
 
-    def _convolve(x, k):
-        sx, ex, sy, ey = _kernel_margins(k.shape, margin_shift=False)
-        return _do_convolve(x, -1, k[::-1, ::-1])[sx:ex, sy:ey]
-
+    def _convolve_opencv(x, k, pad):
+        sx, ex, sy, ey = _kernel_margins(k.shape, margin_shift=False, pad=pad)
+        anchor = (-1, -1)
+        if pad == 'same':
+            # TODO: check if this is correct in all cases
+            anchor = tuple(-1 * (np.array(k.shape) % 2))
+        # opencv computes a correlation, thus flip the kernel
+        return filter2D(x, -1, k[::-1, ::-1], anchor=anchor,
+                        borderType=BORDER_CONSTANT)[sx:ex, sy:ey]
 except ImportError:
-    # scipy.ndimage.convolution behaves slightly differently with
-    # even-sized kernels. If it is used, we need to shift the margins
-    from scipy.ndimage import convolve as _do_convolve
-
-    def _convolve(x, k):
-        sx, ex, sy, ey = _kernel_margins(k.shape, margin_shift=True)
-        return _do_convolve(x, k)[sx:ex, sy:ey]
+    _convolve_opencv = None
 
 
-def convolve(data, kernel):
+def _convolve_scipy(x, k, pad):
+    # scipy.ndimage.convolve behaves slightly differently with
+    # even-sized kernels, thus shift the margins
+    sx, ex, sy, ey = _kernel_margins(k.shape, margin_shift=True, pad=pad)
+    return _scipy_convolve(x, k, mode='constant')[sx:ex, sy:ey]
+
+
+def convolve(data, kernel, pad='valid'):
     """
-    Convolve the data with the kernel in 'valid' mode, i.e. only where
-    kernel and data fully overlaps.
+    Convolve data with kernel.
 
     Parameters
     ----------
@@ -725,14 +736,29 @@ def convolve(data, kernel):
         Data to be convolved.
     kernel : numpy array
         Convolution kernel
+    pad : {'valid', 'same', 'full'}
+        A string indicating the size of the output:
+
+        - full
+            The output is the full discrete linear convolution of the inputs.
+        - valid
+            The output consists only of those elements that do not rely on the
+            zero-padding.
+        - same
+            The output is the same size as the input, centered with respect to
+            the ‘full’ output.
 
     Returns
     -------
     numpy array
-        Convolved data
+        Convolved data.
 
     """
-    return _convolve(data, kernel)
+    t, f = kernel.shape
+    if _convolve_opencv is None or (t < 1024 and f == 1):
+        return _convolve_scipy(data, kernel, pad)
+    else:
+        return _convolve_opencv(data, kernel, pad)
 
 
 class ConvolutionalLayer(FeedForwardLayer):
@@ -741,7 +767,7 @@ class ConvolutionalLayer(FeedForwardLayer):
 
     Parameters
     ----------
-    weights : numpy array, shape (num_feature_maps, num_channels, <kernel>)
+    weights : numpy array, shape (num_channels, num_feature_maps, <kernel>)
         Weights.
     bias : scalar or numpy array, shape (num_filters,)
         Bias.
@@ -764,14 +790,10 @@ class ConvolutionalLayer(FeedForwardLayer):
 
     """
 
-    def __init__(self, weights, bias, stride=1, pad='valid',
+    def __init__(self, weights, bias, stride=None, pad='valid',
                  activation_fn=None):
         super(ConvolutionalLayer, self).__init__(weights, bias, activation_fn)
-        if stride != 1:
-            raise NotImplementedError('only `stride` == 1 implemented.')
         self.stride = stride
-        if pad != 'valid':
-            raise NotImplementedError('only `pad` == "valid" implemented.')
         self.pad = pad
 
     def activate(self, data, **kwargs):
@@ -800,9 +822,12 @@ class ConvolutionalLayer(FeedForwardLayer):
             raise ValueError('Number of channels in weight vector different '
                              'from number of channels of input data!')
         # adjust the output number of frames and bins depending on `pad`
-        # TODO: this works only with pad='valid'
-        num_frames -= (size_time - 1)
-        num_bins -= (size_freq - 1)
+        if self.pad == 'valid':
+            num_frames -= (size_time - 1)
+            num_bins -= (size_freq - 1)
+        elif self.pad != 'same':
+            raise NotImplementedError('`pad` is neither "valid" nor "same"')
+
         # init the output array with Fortran ordering (column major)
         out = np.zeros((num_frames, num_bins, num_features),
                        dtype=NN_DTYPE, order='F')
@@ -811,12 +836,17 @@ class ConvolutionalLayer(FeedForwardLayer):
             channel = data[:, :, c]
             # convolve each channel separately with each filter
             for w, weights in enumerate(self.weights[c]):
-                conv = convolve(channel, weights)
+                conv = convolve(channel, weights, self.pad)
                 out[:, :, w] += conv
         # add bias to each feature map and apply activation function
         out += self.bias
         if self.activation_fn is not None:
             self.activation_fn(out, out=out)
+
+        # use only selected parts of the output
+        if self.stride not in (None, 1, (1, 1)):
+            out = out[::self.stride[0], ::self.stride[1]]
+
         return out
 
 
