@@ -11,6 +11,7 @@ from __future__ import absolute_import, division, print_function
 
 import sys
 import warnings
+from operator import itemgetter
 
 import numpy as np
 
@@ -204,9 +205,9 @@ def detect_tempo(histogram, fps=None, interpolate=False):
         Histogram (tuple of 2 numpy arrays, the first giving the strengths of
         the bins and the second corresponding tempo/delay values).
     fps : float, optional
-        Frames per second. If 'None', the second element is interpreted as tempo
-        values. If set, the histogram's second element is interpreted as inter
-        beat intervals (IBIs) in frames with the given rate.
+        Frames per second. If 'None', the second element is interpreted as
+        tempo values. If set, the histogram's second element is interpreted as
+        inter beat intervals (IBIs) in frames with the given rate.
     interpolate : bool, optional
         Interpolate the histogram bins.
 
@@ -285,8 +286,8 @@ class TempoHistogramProcessor(OnlineProcessor):
                  online=False, **kwargs):
         # pylint: disable=unused-argument
         super(TempoHistogramProcessor, self).__init__(online=online)
-        self.min_bpm = min_bpm
-        self.max_bpm = max_bpm
+        self.min_bpm = float(min_bpm)
+        self.max_bpm = float(max_bpm)
         self.hist_buffer = hist_buffer
         self.fps = fps
         if self.online:
@@ -609,34 +610,86 @@ class DBNTempoHistogramProcessor(TempoHistogramProcessor):
         return np.sum(bins, axis=0), self.intervals
 
 
+class TCNTempoHistogramProcessor(TempoHistogramProcessor):
+    """
+    Derive a tempo histogram from (multi-task) TCN output.
+
+    Parameters
+    ----------
+    min_bpm : float, optional
+        Minimum tempo to detect [bpm].
+    max_bpm : float, optional
+        Maximum tempo to detect [bpm].
+
+    References
+    ----------
+    .. [1] Sebastian Böck, Matthew Davies and Peter Knees,
+           "Multi-Task learning of tempo and beat: learning one to improve the
+           other",
+           Proceedings of the 20th International Society for Music Information
+           Retrieval Conference (ISMIR), 2019.
+
+    """
+
+    def __init__(self, min_bpm=MIN_BPM, max_bpm=MAX_BPM, **kwargs):
+        # pylint: disable=unused-argument
+        super(TCNTempoHistogramProcessor, self).__init__(
+            min_bpm=min_bpm, max_bpm=max_bpm, **kwargs)
+
+    def process(self, data, **kwargs):
+        """
+        Extract tempo histogram from (multi-task) TCN output.
+
+        Parameters
+        ----------
+        data : numpy array or tuple of numpy arrays
+            Tempo-task (numpy array) or multi-task (tuple) output of TCN.
+
+        Returns
+        -------
+        histogram_bins : numpy array
+            Bins of tempo histogram, i.e. tempo strengths.
+        histogram_tempi : numpy array
+            Corresponding tempi [bpm].
+
+        """
+        # if data is a tuple, tempo is usually last item of TCN output
+        if type(data) == tuple:
+            data = itemgetter(-1)(data)
+        # use a linear tempo range
+        tempi = np.arange(len(data))
+        # determine tempo range to consider
+        min_idx = np.argmax(tempi >= self.min_bpm)
+        max_idx = np.argmin(tempi <= self.max_bpm)
+        # return only selected range
+        return data[min_idx:max_idx], tempi[min_idx:max_idx]
+
+
 class TempoEstimationProcessor(OnlineProcessor):
     """
     Tempo Estimation Processor class.
 
     Parameters
     ----------
-    method : {'comb', 'acf', 'dbn'}
-        Method used for tempo estimation.
+    method : {'comb', 'acf', 'dbn', None}
+        Method used for tempo histogram creation, e.g. from a beat
+        activation function or tempo classification layer.
     min_bpm : float, optional
         Minimum tempo to detect [bpm].
     max_bpm : float, optional
         Maximum tempo to detect [bpm].
-    act_smooth : float, optional (default: 0.14)
+    act_smooth : float, optional
         Smooth the activation function over `act_smooth` seconds.
-    hist_smooth : int, optional (default: 7)
+    hist_smooth : int, optional
         Smooth the tempo histogram over `hist_smooth` bins.
     alpha : float, optional
         Scaling factor for the comb filter.
     fps : float, optional
         Frames per second.
     histogram_processor : :class:`TempoHistogramProcessor`, optional
-        Processor used to create a tempo histogram. If 'None', a default
-        combfilter histogram processor will be created and used.
+        Processor used to create a tempo histogram.
     interpolate : bool, optional
         Interpolate tempo with quadratic interpolation.
-    kwargs : dict, optional
-        Keyword arguments passed to :class:`CombFilterTempoHistogramProcessor`
-        if no `histogram_processor` was given.
 
     Examples
     --------
@@ -670,8 +723,8 @@ class TempoEstimationProcessor(OnlineProcessor):
         if method is not None:
             warnings.warn(
                 'Usage of `method` is deprecated as of version 0.17. '
-                'Please use a dedicated `TempoHistogramProcessor` '
-                'before the `TempoEstimationProcessor` instead. '
+                'Please pass a dedicated `TempoHistogramProcessor` '
+                'instance as `histogram_processor`.'
                 'Functionality will be removed in version 0.19.')
             self.method = method
         self.act_smooth = act_smooth
@@ -750,8 +803,8 @@ class TempoEstimationProcessor(OnlineProcessor):
         if self.act_smooth is not None:
             act_smooth = int(round(self.fps * self.act_smooth))
             activations = smooth_signal(activations, act_smooth)
-        # generate a histogram of beat intervals
-        histogram = self.interval_histogram(activations.astype(float))
+        # generate tempo histogram from beat activations/TCN classification
+        histogram = self.histogram_processor(activations)
         # smooth the histogram
         histogram = smooth_histogram(histogram, self.hist_smooth)
         # detect the tempi and return them
