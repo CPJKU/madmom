@@ -89,13 +89,29 @@ class TestDominantIntervalFunction(unittest.TestCase):
 
 class TestDetectTempoFunction(unittest.TestCase):
 
+    def setUp(self):
+        self.bpm_result = np.array([[176.47, 0.169], [117.65, 0.064],
+                                    [250.0, 0.051], [230.77, 0.041],
+                                    [105.26, 0.040], [82.19, 0.015]])
+
     def test_values(self):
         result = detect_tempo(HIST, fps)
-        self.assertTrue(np.allclose(result[:5], [[176.47, 0.169],
-                                                 [117.65, 0.064],
-                                                 [250.0, 0.051],
-                                                 [230.77, 0.041],
-                                                 [105.26, 0.040]], atol=0.1))
+        self.assertTrue(np.allclose(result[:6], self.bpm_result, atol=0.1))
+        # treat histogram values as tempi in BPM
+        result = detect_tempo(HIST)
+        self.assertTrue(np.allclose(result[:6, 0],
+                                    6000. / self.bpm_result[:, 0], atol=0.1))
+        self.assertTrue(np.allclose(result[:6, 1],
+                                    [0.1689, 0.0635, 0.0508, 0.0406, 0.0402,
+                                     0.04], atol=1e-4))
+
+    def test_interpolation(self):
+        result = detect_tempo(HIST, fps, interpolate=True)
+        self.assertTrue(np.allclose(result[:5], [[176.16, 0.111],
+                                                 [116.75, 0.044],
+                                                 [250., 0.033],
+                                                 [82.37, 0.027],
+                                                 [230.33, 0.027]], atol=0.1))
 
 
 class TestTempoEstimationProcessorClass(unittest.TestCase):
