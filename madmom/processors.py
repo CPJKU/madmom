@@ -22,7 +22,6 @@ import os
 import sys
 from collections.abc import MutableSequence
 
-import madmom
 import numpy as np
 
 from .utils import integer_types

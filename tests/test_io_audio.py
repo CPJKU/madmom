@@ -98,7 +98,7 @@ class TestLoadWaveFileFunction(unittest.TestCase):
             load_wave_file(sample_file, sample_rate=22050)
         # resampling of wav not supported
         with self.assertRaises(ValueError):
-            load_wave_file(sample_file, dtype=np.float)
+            load_wave_file(sample_file, dtype=float)
         # file not found
         with self.assertRaises(IOError):
             load_wave_file(pj(AUDIO_PATH, 'foo_bar.wav'))

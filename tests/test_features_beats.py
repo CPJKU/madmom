@@ -148,12 +148,15 @@ class TestDBNBeatTrackingProcessorClass(unittest.TestCase):
         processor.reset()
         beats = [processor.process_forward(np.atleast_1d(act), reset=False)
                  for act in sample_lstm_act]
-        self.assertTrue(np.allclose(np.nonzero(beats),
+        beats = np.array([b.size > 0 for b in beats])
+        self.assertTrue(np.allclose(np.nonzero(beats)[0],
                                     [47, 79, 148, 216, 250]))
         # without resetting results are different
         beats = [processor.process_forward(np.atleast_1d(act), reset=False)
                  for act in sample_lstm_act]
-        self.assertTrue(np.allclose(np.nonzero(beats), [3, 79, 149, 216, 252]))
+        beats = np.array([b.size > 0 for b in beats])
+        self.assertTrue(np.allclose(np.nonzero(beats)[0],
+                                    [3, 79, 149, 216, 252]))
 
     def test_empty_path(self):
         # beat activation which leads to an empty path

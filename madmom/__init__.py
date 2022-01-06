@@ -40,10 +40,10 @@ doctest.NORMALIZE_FFT = _NORMALIZE_FFT
 doctest.__all__.append("NORMALIZE_FFT")
 doctest.COMPARISON_FLAGS = doctest.COMPARISON_FLAGS | _NORMALIZE_FFT
 
-_doctest_OutputChecker = doctest.OutputChecker
+_DoctestOutputChecker = doctest.OutputChecker
 
 
-class _OutputChecker(_doctest_OutputChecker):
+class _OutputChecker(_DoctestOutputChecker):
     """
     Output checker which enhances `doctest.OutputChecker` to compare doctests
     and computed output with additional flags.
@@ -91,7 +91,7 @@ class _OutputChecker(_doctest_OutputChecker):
             got = re.sub(r'-3.14159', ' 3.14159', got)
             want = re.sub(r'-3.14159', ' 3.14159', want)
 
-        super_check_output = _doctest_OutputChecker.check_output
+        super_check_output = _DoctestOutputChecker.check_output
         return super_check_output(self, want, got, optionflags)
 
 

@@ -11,9 +11,9 @@ import unittest
 
 from madmom.audio.comb_filters import *
 
-sig_1d = np.asarray([0, 0, 1, 0, 0, 1, 0, 0, 1], dtype=np.float)
+sig_1d = np.asarray([0, 0, 1, 0, 0, 1, 0, 0, 1], dtype=float)
 sig_2d = np.asarray([[0, 0, 1, 0, 0, 1, 0, 0, 1],
-                     [1, 0, 1, 0, 1, 0, 1, 0, 1]], dtype=np.float).T
+                     [1, 0, 1, 0, 1, 0, 1, 0, 1]], dtype=float).T
 
 
 # test forward filters

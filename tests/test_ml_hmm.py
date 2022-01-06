@@ -71,8 +71,8 @@ class TestTransitionModelClass(unittest.TestCase):
         self.assertIsInstance(self.tm.num_transitions, int)
         self.assertTrue(self.tm.states.dtype == np.uint32)
         self.assertTrue(self.tm.pointers.dtype == np.uint32)
-        self.assertTrue(self.tm.probabilities.dtype == np.float)
-        self.assertTrue(self.tm.log_probabilities.dtype == np.float)
+        self.assertTrue(self.tm.probabilities.dtype == float)
+        self.assertTrue(self.tm.log_probabilities.dtype == float)
 
     def test_values(self):
         self.assertTrue(np.allclose(self.tm.states, [0, 1, 0, 1, 2, 1, 2]))
@@ -106,8 +106,8 @@ class TestDiscreteObservationModelClass(unittest.TestCase):
         self.assertIsInstance(self.om.densities(OBS_SEQ), np.ndarray)
         self.assertIsInstance(self.om.log_densities(OBS_SEQ), np.ndarray)
         self.assertTrue(self.om.pointers.dtype == np.uint32)
-        self.assertTrue(self.om.densities(OBS_SEQ).dtype == np.float)
-        self.assertTrue(self.om.log_densities(OBS_SEQ).dtype == np.float)
+        self.assertTrue(self.om.densities(OBS_SEQ).dtype == float)
+        self.assertTrue(self.om.log_densities(OBS_SEQ).dtype == float)
 
     def test_values(self):
         self.assertTrue(np.allclose(self.om.pointers, [0, 1, 2]))
@@ -159,7 +159,8 @@ class TestHiddenMarkovModelClass(unittest.TestCase):
         self.assertTrue(np.allclose(self.hmm.initial_distribution, PRIOR))
 
     def test_forward_generator(self):
-        fwd = np.vstack(self.hmm.forward_generator(OBS_SEQ, block_size=5))
+        fwd = np.vstack(list(self.hmm.forward_generator(OBS_SEQ,
+                                                        block_size=5)))
         self.assertTrue(np.allclose(fwd, CORRECT_FWD))
 
     def test_invalid_sequence(self):

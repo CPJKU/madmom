@@ -36,19 +36,19 @@ def find_closest_matches(detections, annotations):
 
     """
     # make sure the arrays have the correct types
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
+    detections = np.asarray(detections, dtype=float)
+    annotations = np.asarray(annotations, dtype=float)
     # TODO: right now, it only works with 1D arrays
     if detections.ndim > 1 or annotations.ndim > 1:
         raise NotImplementedError('please implement multi-dim support')
     # if no detections or annotations are given
     if len(detections) == 0 or len(annotations) == 0:
         # return a empty array
-        return np.zeros(0, dtype=np.int)
+        return np.zeros(0, dtype=int)
     # if only a single annotation is given
     if len(annotations) == 1:
         # return an array as long as the detections with indices 0
-        return np.zeros(len(detections), dtype=np.int)
+        return np.zeros(len(detections), dtype=int)
     # solution found at: http://stackoverflow.com/questions/8914491/
     indices = annotations.searchsorted(detections)
     indices = np.clip(indices, 1, len(annotations) - 1)
@@ -84,17 +84,17 @@ def calc_errors(detections, annotations, matches=None):
 
     """
     # make sure the arrays have the correct types
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
+    detections = np.asarray(detections, dtype=float)
+    annotations = np.asarray(annotations, dtype=float)
     if matches is not None:
-        matches = np.asarray(matches, dtype=np.int)
+        matches = np.asarray(matches, dtype=int)
     # TODO: right now, it only works with 1D arrays
     if detections.ndim > 1 or annotations.ndim > 1:
         raise NotImplementedError('please implement multi-dim support')
     # if no detections or annotations are given
     if len(detections) == 0 or len(annotations) == 0:
         # return a empty array
-        return np.zeros(0, dtype=np.float)
+        return np.zeros(0, dtype=float)
     # determine the closest annotations
     if matches is None:
         matches = find_closest_matches(detections, annotations)
@@ -129,10 +129,10 @@ def calc_absolute_errors(detections, annotations, matches=None):
 
     """
     # make sure the arrays have the correct types
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
+    detections = np.asarray(detections, dtype=float)
+    annotations = np.asarray(annotations, dtype=float)
     if matches is not None:
-        matches = np.asarray(matches, dtype=np.int)
+        matches = np.asarray(matches, dtype=int)
     # TODO: right now, it only works with 1D arrays
     if detections.ndim > 1 or annotations.ndim > 1:
         raise NotImplementedError('please implement multi-dim support')
@@ -165,17 +165,17 @@ def calc_relative_errors(detections, annotations, matches=None):
 
     """
     # make sure the arrays have the correct types
-    detections = np.asarray(detections, dtype=np.float)
-    annotations = np.asarray(annotations, dtype=np.float)
+    detections = np.asarray(detections, dtype=float)
+    annotations = np.asarray(annotations, dtype=float)
     if matches is not None:
-        matches = np.asarray(matches, dtype=np.int)
+        matches = np.asarray(matches, dtype=int)
     # TODO: right now, it only works with 1D arrays
     if detections.ndim > 1 or annotations.ndim > 1:
         raise NotImplementedError('please implement multi-dim support')
     # if no detections or annotations are given
     if len(detections) == 0 or len(annotations) == 0:
         # return a empty array
-        return np.zeros(0, dtype=np.float)
+        return np.zeros(0, dtype=float)
     # determine the closest annotations
     if matches is None:
         matches = find_closest_matches(detections, annotations)
@@ -425,10 +425,10 @@ class Evaluation(SimpleEvaluation):
         # instantiate a SimpleEvaluation object
         super(Evaluation, self).__init__(**kwargs)
         # convert everything to numpy arrays and save them
-        self.tp = np.asarray(list(tp), dtype=np.float)
-        self.fp = np.asarray(list(fp), dtype=np.float)
-        self.tn = np.asarray(list(tn), dtype=np.float)
-        self.fn = np.asarray(list(fn), dtype=np.float)
+        self.tp = np.asarray(list(tp), dtype=float)
+        self.fp = np.asarray(list(fp), dtype=float)
+        self.tn = np.asarray(list(tn), dtype=float)
+        self.fn = np.asarray(list(fn), dtype=float)
 
     @property
     def num_tp(self):
@@ -487,10 +487,10 @@ class MultiClassEvaluation(Evaluation):
         if fn is None:
             fn = np.zeros((0, 2))
         super(MultiClassEvaluation, self).__init__(**kwargs)
-        self.tp = np.asarray(tp, dtype=np.float)
-        self.fp = np.asarray(fp, dtype=np.float)
-        self.tn = np.asarray(tn, dtype=np.float)
-        self.fn = np.asarray(fn, dtype=np.float)
+        self.tp = np.asarray(tp, dtype=float)
+        self.fp = np.asarray(fp, dtype=float)
+        self.tn = np.asarray(tn, dtype=float)
+        self.fn = np.asarray(fn, dtype=float)
 
     def tostring(self, verbose=False, **kwargs):
         """

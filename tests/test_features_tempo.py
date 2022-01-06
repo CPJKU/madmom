@@ -15,7 +15,7 @@ from madmom.io import write_tempo, load_tempo
 from . import ACTIVATIONS_PATH
 
 act_file = np.load(pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
-act = act_file['activations'].astype(np.float)
+act = act_file['activations'].astype(float)
 fps = float(act_file['fps'])
 
 COMB_TEMPI = np.array([[176.470, 0.475], [117.647, 0.177],

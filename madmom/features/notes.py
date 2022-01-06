@@ -195,7 +195,7 @@ class NoteOnsetPeakPickingProcessor(OnsetPeakPickingProcessor):
         if not onsets.any():
             return np.empty((0, 2))
         # convert onset timing and apply pitch offset
-        onsets = onsets.astype(np.float) / self.fps
+        onsets = onsets.astype(float) / self.fps
         pitches += self.pitch_offset
         # shift if necessary
         if self.delay:
@@ -425,7 +425,7 @@ class ADSRNoteTrackingProcessor(Processor):
             segments = np.logical_and(path > self.st.attack,
                                       path < self.st.release)
             # extract start and end positions (transition points)
-            idx = np.nonzero(np.diff(segments.astype(np.int)))[0]
+            idx = np.nonzero(np.diff(segments.astype(int)))[0]
             # add end if needed
             if len(idx) % 2 != 0:
                 idx = np.append(idx, [len(activations)])

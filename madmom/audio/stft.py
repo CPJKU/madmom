@@ -270,7 +270,7 @@ class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
     Doing the same with a Signal of float data-type will result in a STFT of
     same value range (rounding errors will occur of course):
 
-    >>> sig = Signal('tests/data/audio/sample.wav', dtype=np.float)
+    >>> sig = Signal('tests/data/audio/sample.wav', dtype=float)
     >>> sig  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     Signal([-0.07611, -0.0766 , ...,  0.01999,  0.0195 ])
     >>> frames = FramedSignal(sig, frame_size=2048, hop_size=441)

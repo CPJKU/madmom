@@ -269,7 +269,7 @@ def hz2midi(f, fref=A4):
     to round it to the nearest integer.
 
     """
-    return (12. * np.log2(np.asarray(f, dtype=np.float) / fref)) + 69.
+    return (12. * np.log2(np.asarray(f, dtype=float) / fref)) + 69.
 
 
 def midi2hz(m, fref=A4):
@@ -289,7 +289,7 @@ def midi2hz(m, fref=A4):
         Corresponding frequencies [Hz].
 
     """
-    return 2. ** ((np.asarray(m, dtype=np.float) - 69.) / 12.) * fref
+    return 2. ** ((np.asarray(m, dtype=float) - 69.) / 12.) * fref
 
 
 # provide an alias to semitone_frequencies
@@ -405,7 +405,7 @@ def bins2frequencies(bins, bin_frequencies):
 
     """
     # map the frequencies to spectrogram bins
-    return np.asarray(bin_frequencies, dtype=np.float)[np.asarray(bins)]
+    return np.asarray(bin_frequencies, dtype=float)[np.asarray(bins)]
 
 
 # filter classes
@@ -637,7 +637,7 @@ class RectangularFilter(Filter):
         # length of the filter
         length = stop - start
         # create filter
-        data = np.ones(length, dtype=np.float)
+        data = np.ones(length, dtype=float)
         # cast to RectangularFilter and return it
         return Filter.__new__(cls, data, start, norm)
 
@@ -732,7 +732,7 @@ class Filterbank(np.ndarray):
         if len(bin_frequencies) != obj.shape[0]:
             raise ValueError('`bin_frequencies` must have the same length as '
                              'the first dimension of `data`.')
-        obj.bin_frequencies = np.asarray(bin_frequencies, dtype=np.float)
+        obj.bin_frequencies = np.asarray(bin_frequencies, dtype=float)
         # return the object
         return obj
 
