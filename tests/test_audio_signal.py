@@ -14,7 +14,7 @@ import unittest
 from os.path import join as pj
 
 from madmom.audio.signal import *
-from . import AUDIO_PATH, DATA_PATH
+from . import AUDIO_PATH
 from .test_audio_comb_filters import sig_1d, sig_2d
 
 sample_file = pj(AUDIO_PATH, 'sample.wav')
@@ -1327,12 +1327,12 @@ class TestFramedSignalClass(unittest.TestCase):
 
     def test_iterating(self):
         frames = FramedSignal(sig_1d, frame_size=4, hop_size=2)
-        res = frames[range(frames.num_frames)[0]]
-        res = frames[np.arange(frames.num_frames)[0]]
-        res = frames[np.arange(frames.num_frames, dtype=int)[0]]
+        _ = frames[range(frames.num_frames)[0]]
+        _ = frames[np.arange(frames.num_frames)[0]]
+        _ = frames[np.arange(frames.num_frames, dtype=int)[0]]
         if sys.version_info[0] == 2:
-            res = frames[xrange(frames.num_frames)[0]]
-            res = frames[long(range(frames.num_frames)[0])]
+            _ = frames[range(frames.num_frames)[0]]
+            _ = frames[np.long(range(frames.num_frames)[0])]
 
 
 class TestFramedSignalProcessorClass(unittest.TestCase):

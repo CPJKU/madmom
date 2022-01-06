@@ -887,7 +887,7 @@ class TestBeatEvaluationClass(unittest.TestCase):
     def test_errors(self):
         # conversion from list of lists
         with self.assertRaises(BeatIntervalError):
-            e = BeatEvaluation(0, 1.)
+            BeatEvaluation(0, 1.)
 
     def test_results_empty(self):
         e = BeatEvaluation([], [])

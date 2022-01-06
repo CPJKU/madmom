@@ -15,7 +15,7 @@ from scipy.ndimage.filters import maximum_filter, minimum_filter
 
 from ..audio.signal import smooth as smooth_signal
 from ..processors import (BufferProcessor, OnlineProcessor, ParallelProcessor,
-                          Processor, SequentialProcessor, )
+                          SequentialProcessor, )
 from ..utils import combine_events
 
 EPSILON = np.spacing(1)

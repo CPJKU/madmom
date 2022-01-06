@@ -12,6 +12,7 @@ import unittest
 from madmom.models import *
 from madmom.ml.nn import *
 from madmom.ml.nn.layers import *
+from madmom.ml.nn.activations import *
 
 
 class TestRNNClass(unittest.TestCase):
@@ -306,18 +307,18 @@ class TestGRUClass(unittest.TestCase):
     H = np.array([0.02345737, 0.34454183])
 
     def setUp(self):
-        self.reset_gate = layers.Gate(
+        self.reset_gate = Gate(
             TestGRUClass.W_xr, TestGRUClass.b_r, TestGRUClass.W_hr,
-            activation_fn=activations.sigmoid)
-        self.update_gate = layers.Gate(
+            activation_fn=sigmoid)
+        self.update_gate = Gate(
             TestGRUClass.W_xu, TestGRUClass.b_u, TestGRUClass.W_hu,
-            activation_fn=activations.sigmoid)
-        self.gru_cell = layers.GRUCell(
+            activation_fn=sigmoid)
+        self.gru_cell = GRUCell(
             TestGRUClass.W_xhu, TestGRUClass.b_hu, TestGRUClass.W_hhu)
-        self.gru_1 = layers.GRULayer(self.reset_gate, self.update_gate,
-                                     self.gru_cell)
-        self.gru_2 = layers.GRULayer(self.reset_gate, self.update_gate,
-                                     self.gru_cell, init=TestGRUClass.H)
+        self.gru_1 = GRULayer(self.reset_gate, self.update_gate,
+                              self.gru_cell)
+        self.gru_2 = GRULayer(self.reset_gate, self.update_gate,
+                              self.gru_cell, init=TestGRUClass.H)
 
     def test_activate(self):
         self.assertTrue(
@@ -400,9 +401,8 @@ class TestBatchNormLayerClass(unittest.TestCase):
         params = TestBatchNormLayerClass.BN_PARAMS
         x = TestBatchNormLayerClass.IN
         y_true = TestBatchNormLayerClass.OUT
-        bnl = layers.BatchNormLayer(
-            params[0], params[1], params[2], params[3], activations.linear)
-
+        bnl = BatchNormLayer(
+            params[0], params[1], params[2], params[3], linear)
         y = bnl.activate(x)
 
         self.assertTrue(np.allclose(y, y_true))
@@ -425,21 +425,21 @@ class TestAverageLayerClass(unittest.TestCase):
     OUT_02_KD = np.array([[[0.55077857], [0.44537673], [0.39767252]]])
 
     def test_average_layer(self):
-        al = layers.AverageLayer()
+        al = AverageLayer()
         out = al(TestAverageLayerClass.IN)
         self.assertAlmostEqual(out, TestAverageLayerClass.OUT_AVG)
 
-        al = layers.AverageLayer(axis=(0, 2))
+        al = AverageLayer(axis=(0, 2))
         out = al(TestAverageLayerClass.IN)
         self.assertEqual(out.shape, (3,))
         self.assertTrue(np.allclose(out, TestAverageLayerClass.OUT_02))
 
-        al = layers.AverageLayer(axis=(0, 2), keepdims=True)
+        al = AverageLayer(axis=(0, 2), keepdims=True)
         out = al(TestAverageLayerClass.IN)
         self.assertEqual(out.shape, (1, 3, 1))
         self.assertTrue(np.allclose(out, TestAverageLayerClass.OUT_02_KD))
 
-        al = layers.AverageLayer(axis=(0, 2), dtype=np.float32)
+        al = AverageLayer(axis=(0, 2), dtype=np.float32)
         out = al(TestAverageLayerClass.IN)
         self.assertEqual(out.dtype, np.float32)
 
@@ -449,15 +449,15 @@ class TestReshapeLayerClass(unittest.TestCase):
     IN = np.random.random((2, 3, 4))
 
     def test_reshape_layer(self):
-        rl = layers.ReshapeLayer(newshape=(3, 4, 2))
+        rl = ReshapeLayer(newshape=(3, 4, 2))
         self.assertEqual(rl(TestReshapeLayerClass.IN).shape, (3, 4, 2))
-        rl = layers.ReshapeLayer(newshape=(3, -1, 2))
+        rl = ReshapeLayer(newshape=(3, -1, 2))
         self.assertEqual(rl(TestReshapeLayerClass.IN).shape, (3, 4, 2))
-        rl = layers.ReshapeLayer(newshape=(-1,))
+        rl = ReshapeLayer(newshape=(-1,))
         self.assertEqual(rl(TestReshapeLayerClass.IN).shape, (24,))
 
         with self.assertRaises(ValueError):
-            rl = layers.ReshapeLayer(newshape=(3, 2, 2))
+            rl = ReshapeLayer(newshape=(3, 2, 2))
             rl(TestReshapeLayerClass.IN)
 
 
@@ -466,29 +466,29 @@ class TestTransposeLayerClass(unittest.TestCase):
     IN = np.random.random((2, 3, 4, 5))
 
     def test_transpose_layer(self):
-        tl = layers.TransposeLayer()
+        tl = TransposeLayer()
         self.assertEqual(tl(TestTransposeLayerClass.IN).shape, (5, 4, 3, 2))
 
-        tl = layers.TransposeLayer(axes=(2, 0, 1, 3))
+        tl = TransposeLayer(axes=(2, 0, 1, 3))
         self.assertEqual(tl(TestTransposeLayerClass.IN).shape, (4, 2, 3, 5))
 
         with self.assertRaises(ValueError):
-            tl = layers.TransposeLayer(axes=(0, 1, 3))
+            tl = TransposeLayer(axes=(0, 1, 3))
             tl(TestTransposeLayerClass.IN)
 
         with self.assertRaises(ValueError):
-            tl = layers.TransposeLayer(axes=(0, 1, 2, 3, 4))
+            tl = TransposeLayer(axes=(0, 1, 2, 3, 4))
             tl(TestTransposeLayerClass.IN)
 
         with self.assertRaises(ValueError):
-            tl = layers.TransposeLayer(axes=(0, 1, 1, 2))
+            tl = TransposeLayer(axes=(0, 1, 1, 2))
             tl(TestTransposeLayerClass.IN)
 
 
 class TestPadLayerClass(unittest.TestCase):
 
     def test_constant_padding(self):
-        pl = layers.PadLayer(width=2, axes=(0, 1), value=10.)
+        pl = PadLayer(width=2, axes=(0, 1), value=10.)
         data = np.arange(40).reshape(5, 4, 2).astype(float)
         out = pl(data)
 
@@ -499,7 +499,7 @@ class TestPadLayerClass(unittest.TestCase):
         self.assertTrue(np.allclose(out[:, :2, :], 10.))
         self.assertTrue(np.allclose(out[:, -2:, :], 10.))
 
-        pl = layers.PadLayer(width=3, axes=(2,), value=2.2)
+        pl = PadLayer(width=3, axes=(2,), value=2.2)
         out = pl(data)
 
         self.assertEqual(out.shape, (5, 4, 8))
