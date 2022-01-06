@@ -280,7 +280,7 @@ class DBNDownBeatTrackingProcessor(Processor):
         results = list(self.map(_process_dbn, zip(self.hmms,
                                                   it.repeat(activations))))
         # choose the best HMM (highest log probability)
-        best = np.argmax(np.asarray(results)[:, 1])
+        best = np.argmax(list(r[1] for r in results))
         # the best path through the state space
         path, _ = results[best]
         # the state space and observation model of the best HMM
@@ -291,12 +291,15 @@ class DBNDownBeatTrackingProcessor(Processor):
         # corresponding beats (add 1 for natural counting)
         beat_numbers = positions.astype(int) + 1
         if self.correct:
-            beats = np.empty(0, dtype=np.int)
+            beats = np.empty(0, dtype=int)
             # for each detection determine the "beat range", i.e. states where
             # the pointers of the observation model are >= 1
             beat_range = om.pointers[path] >= 1
+            # if there aren't any in the beat range, there are no beats
+            if not beat_range.any():
+                return np.empty((0, 2))
             # get all change points between True and False (cast to int before)
-            idx = np.nonzero(np.diff(beat_range.astype(np.int)))[0] + 1
+            idx = np.nonzero(np.diff(beat_range.astype(int)))[0] + 1
             # if the first frame is in the beat range, add a change at frame 0
             if beat_range[0]:
                 idx = np.r_[0, idx]

@@ -35,16 +35,16 @@ from . import evaluation_io, EvaluationMixin
 from ..io import load_chords
 
 
-CHORD_DTYPE = [('root', np.int),
-               ('bass', np.int),
-               ('intervals', np.int, (12,))]
+CHORD_DTYPE = [('root', int),
+               ('bass', int),
+               ('intervals', int, (12,))]
 
-CHORD_ANN_DTYPE = [('start', np.float),
-                   ('end', np.float),
+CHORD_ANN_DTYPE = [('start', float),
+                   ('end', float),
                    ('chord', CHORD_DTYPE)]
 
-NO_CHORD = (-1, -1, np.zeros(12, dtype=np.int))
-UNKNOWN_CHORD = (-1, -1, np.ones(12, dtype=np.int) * -1)
+NO_CHORD = (-1, -1, np.zeros(12, dtype=int))
+UNKNOWN_CHORD = (-1, -1, np.ones(12, dtype=int) * -1)
 
 
 def encode(chord_labels):
@@ -244,7 +244,7 @@ def interval_list(intervals_str, given_pitch_classes=None):
 
     """
     if given_pitch_classes is None:
-        given_pitch_classes = np.zeros(12, dtype=np.int)
+        given_pitch_classes = np.zeros(12, dtype=int)
     for int_def in intervals_str[1:-1].split(','):
         int_def = int_def.strip()
         if int_def[0] == '*':
@@ -305,7 +305,7 @@ def chord_intervals(quality_str):
     if list_idx != 0:
         ivs = _shorthands[quality_str[:list_idx]].copy()
     else:
-        ivs = np.zeros(12, dtype=np.int)
+        ivs = np.zeros(12, dtype=int)
 
     return interval_list(quality_str[list_idx:], ivs)
 
@@ -398,7 +398,7 @@ def score_root(det_chords, ann_chords):
         Similarity score for each chord.
 
     """
-    return (ann_chords['root'] == det_chords['root']).astype(np.float)
+    return (ann_chords['root'] == det_chords['root']).astype(float)
 
 
 def score_exact(det_chords, ann_chords):
@@ -422,7 +422,7 @@ def score_exact(det_chords, ann_chords):
     return ((ann_chords['root'] == det_chords['root']) &
             (ann_chords['bass'] == det_chords['bass']) &
             ((ann_chords['intervals'] == det_chords['intervals']).all(axis=1))
-            ).astype(np.float)
+            ).astype(float)
 
 
 def reduce_to_triads(chords, keep_bass=False):

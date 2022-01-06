@@ -1035,6 +1035,34 @@ class TestSuperFluxNNProgram(unittest.TestCase):
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
 
+class TestTCNBeatTrackerProgram(unittest.TestCase):
+
+    def setUp(self):
+        self.bin = pj(program_path, "TCNBeatTracker")
+        self.activations = Activations(
+            pj(ACTIVATIONS_PATH, "sample.beats_tcn_beats.npz"))
+        self.result = np.loadtxt(
+            pj(DETECTIONS_PATH, "sample.tcn_beat_tracker.txt"))
+
+    def test_help(self):
+        self.assertTrue(run_help(self.bin))
+
+    def test_binary(self):
+        # save activations as binary file
+        run_save(self.bin, sample_file, tmp_act)
+        act = Activations(tmp_act)
+        self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
+        # reload from file
+        run_load(self.bin, tmp_act, tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+
+    def test_run(self):
+        run_single(self.bin, sample_file, tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+
+
 class TestTempoDetectorProgram(unittest.TestCase):
 
     def setUp(self):
@@ -1093,6 +1121,34 @@ class TestTempoDetectorProgram(unittest.TestCase):
         self.assertTrue(np.allclose(
             result, [[176.47, 0.475], [117.65, 0.177], [240.00, 0.154],
                      [68.97, 0.099], [82.19, 0.096]]))
+
+
+class TestTCNTempoDetectorProgram(unittest.TestCase):
+
+    def setUp(self):
+        self.bin = pj(program_path, "TCNTempoDetector")
+        self.activations = Activations(
+            pj(ACTIVATIONS_PATH, "sample.beats_tcn_tempo.npz"))
+        self.result = np.loadtxt(
+            pj(DETECTIONS_PATH, "sample.tcn_tempo_detector.txt"))
+
+    def test_help(self):
+        self.assertTrue(run_help(self.bin))
+
+    def test_binary(self):
+        # save activations as binary file
+        run_save(self.bin, sample_file, tmp_act)
+        act = Activations(tmp_act)
+        self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
+        # reload from file
+        run_load(self.bin, tmp_act, tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+
+    def test_run(self):
+        run_single(self.bin, sample_file, tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
 
 # clean up

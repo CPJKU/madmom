@@ -15,7 +15,7 @@ from scipy.ndimage.filters import maximum_filter, minimum_filter
 
 from ..audio.signal import smooth as smooth_signal
 from ..processors import (BufferProcessor, OnlineProcessor, ParallelProcessor,
-                          Processor, SequentialProcessor, )
+                          SequentialProcessor, )
 from ..utils import combine_events
 
 EPSILON = np.spacing(1)
@@ -1097,7 +1097,7 @@ class OnsetPeakPickingProcessor(OnlineProcessor):
         # detect the peaks (function returns int indices)
         onsets = peak_picking(activations, self.threshold, *timings)
         # convert to timestamps
-        onsets = onsets.astype(np.float) / self.fps
+        onsets = onsets.astype(float) / self.fps
         # shift if necessary
         if self.delay:
             onsets += self.delay
@@ -1124,6 +1124,9 @@ class OnsetPeakPickingProcessor(OnlineProcessor):
             Detected onsets [seconds].
 
         """
+        # cast as 1-dimensional array
+        # Note: in online mode, activations are just float values
+        activations = np.array(activations, copy=False, subok=True, ndmin=1)
         # buffer data
         if self.buffer is None or reset:
             # reset the processor

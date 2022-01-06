@@ -1,17 +1,14 @@
 language: python
 matrix:
   include:
-    - python: 2.7
-      dist: xenial
-      sudo: required
-    - python: 3.5
-      dist: xenial
-      sudo: required
-    - python: 3.6
-      dist: xenial
-      sudo: required
     - python: 3.7
       dist: xenial
+      sudo: required
+    - python: 3.8
+      dist: focal
+      sudo: required
+    - python: 3.9
+      dist: focal
       sudo: required
 before_install:
   # get a working ffmpeg
@@ -46,7 +43,7 @@ install:
 before_script:
   - pep8 --ignore=E402 madmom tests bin
 script:
-  - pytest --cov --doctest-modules --doctest-ignore-import-errors madmom tests
+  - pytest --cov --doctest-ignore-import-errors madmom tests
 after_success:
   - codecov
   - coveralls

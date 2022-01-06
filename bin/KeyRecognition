@@ -24,7 +24,7 @@ def main():
 
     Filip Korzeniowski and Gerhard Widmer,
     "Genre-Agnostic Key Classification with Convolutional Neural Networks",
-    In Proceedings of the 19th International Society for Music Information 
+    In Proceedings of the 19th International Society for Music Information
     Retrieval Conference (ISMIR), Paris, France, 2018.
 
     This program can be run in 'single' file mode to process a single audio

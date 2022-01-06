@@ -33,6 +33,8 @@ ACTIVATION_FILES = [pj(ACTIVATIONS_PATH, 'sample.bar_tracker.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.beats_blstm.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.beats_blstm_mm.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.beats_lstm.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.beats_tcn_beats.npz'),
+                    pj(ACTIVATIONS_PATH, 'sample.beats_tcn_tempo.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.cnn_chord_features.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.downbeats_blstm.npz'),
                     pj(ACTIVATIONS_PATH, 'sample.deep_chroma.npz'),
@@ -88,6 +90,8 @@ DETECTION_FILES = [pj(DETECTIONS_PATH, 'dummy.chords.txt'),
                    pj(DETECTIONS_PATH, 'sample.spectral_flux.txt'),
                    pj(DETECTIONS_PATH, 'sample.super_flux.txt'),
                    pj(DETECTIONS_PATH, 'sample.super_flux_nn.txt'),
+                   pj(DETECTIONS_PATH, 'sample.tcn_beat_tracker.txt'),
+                   pj(DETECTIONS_PATH, 'sample.tcn_tempo_detector.txt'),
                    pj(DETECTIONS_PATH, 'sample.tempo_detector.txt'),
                    pj(DETECTIONS_PATH, 'sample2.cnn_chord_recognition.txt'),
                    pj(DETECTIONS_PATH, 'sample2.dc_chord_recognition.txt'),
@@ -470,10 +474,10 @@ class TestSegmentAxisFunction(unittest.TestCase):
     def test_types(self):
         result = segment_axis(np.arange(10), 4, 2)
         self.assertIsInstance(result, np.ndarray)
-        self.assertTrue(result.dtype == np.int)
-        result = segment_axis(np.arange(10, dtype=np.float), 4, 2)
+        self.assertTrue(result.dtype == int)
+        result = segment_axis(np.arange(10, dtype=float), 4, 2)
         self.assertIsInstance(result, np.ndarray)
-        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.dtype == float)
         # test with a Signal
         from madmom.audio.signal import Signal
         signal = Signal(pj(AUDIO_PATH, 'sample.wav'))
