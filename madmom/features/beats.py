@@ -1014,16 +1014,18 @@ class DBNBeatTrackingProcessor(OnlineProcessor):
             Detected beat positions [seconds].
 
         """
-        # init the beats to return and the offset
-        beats = np.empty(0, dtype=int)
+        # init beats to return and offset (to be added later)
+        beats = np.empty(0, dtype=float)
         first = 0
-        # use only the activations > threshold
+        # use only activations > threshold
         if self.threshold:
             activations, first = threshold_activations(activations,
                                                        self.threshold)
         # return no beats if no activations given / remain after thresholding
         if not activations.any():
             return beats
+        # add a small epsilon to prevent division by 0
+        activations += np.finfo(activations.dtype).eps
         # get the best state path by calling the viterbi algorithm
         path, _ = self.hmm.viterbi(activations)
         # also return no beats if no path was found

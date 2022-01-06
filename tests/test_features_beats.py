@@ -170,5 +170,5 @@ class TestDBNBeatTrackingProcessorClass(unittest.TestCase):
 
     def test_empty_path(self):
         # beat activation which leads to an empty path
-        act = np.array([0, 1, 0, 1, 0, 1])
+        act = np.array([0, 1, 0, 1, 0, 1], dtype=float)
         self.assertTrue(np.allclose(self.processor(act), []))
