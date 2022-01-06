@@ -10,6 +10,7 @@ from __future__ import absolute_import, division, print_function
 import unittest
 from os.path import join as pj
 
+from madmom.features import Activations
 from madmom.features.tempo import *
 from madmom.io import write_tempo, load_tempo
 from . import ACTIVATIONS_PATH
@@ -36,6 +37,8 @@ DBN_TEMPI = np.array([[176.470, 1]])
 DBN_TEMPI_ONLINE = [[176.470588, 0.580877380], [86.9565217, 0.244729904],
                     [74.0740741, 0.127887992], [40.8163265, 0.0232523621],
                     [250.000000, 0.0232523621]]
+TCN_TEMPI = np.array([[87, 0.62103526], [175, 0.2131467], [58, 0.1607556],
+                      [41, 0.00323059], [115, 0.0008726]])
 HIST = interval_histogram_comb(act, 0.79, min_tau=24, max_tau=150)
 
 
@@ -89,13 +92,29 @@ class TestDominantIntervalFunction(unittest.TestCase):
 
 class TestDetectTempoFunction(unittest.TestCase):
 
+    def setUp(self):
+        self.bpm_result = np.array([[176.47, 0.169], [117.65, 0.064],
+                                    [250.0, 0.051], [230.77, 0.041],
+                                    [105.26, 0.040], [82.19, 0.015]])
+
     def test_values(self):
         result = detect_tempo(HIST, fps)
-        self.assertTrue(np.allclose(result[:5], [[176.47, 0.169],
-                                                 [117.65, 0.064],
-                                                 [250.0, 0.051],
-                                                 [230.77, 0.041],
-                                                 [105.26, 0.040]], atol=0.1))
+        self.assertTrue(np.allclose(result[:6], self.bpm_result, atol=0.1))
+        # treat histogram values as tempi in BPM
+        result = detect_tempo(HIST)
+        self.assertTrue(np.allclose(result[:6, 0],
+                                    6000. / self.bpm_result[:, 0], atol=0.1))
+        self.assertTrue(np.allclose(result[:6, 1],
+                                    [0.1689, 0.0635, 0.0508, 0.0406, 0.0402,
+                                     0.04], atol=1e-4))
+
+    def test_interpolation(self):
+        result = detect_tempo(HIST, fps, interpolate=True)
+        self.assertTrue(np.allclose(result[:5], [[176.16, 0.111],
+                                                 [116.75, 0.044],
+                                                 [250., 0.033],
+                                                 [82.37, 0.027],
+                                                 [230.33, 0.027]], atol=0.1))
 
 
 class TestTempoEstimationProcessorClass(unittest.TestCase):
@@ -401,6 +420,54 @@ class TestDBNTempoHistogramProcessorClass(unittest.TestCase):
         self.assertTrue(np.allclose(np.sum(hist), 281))
         self.assertTrue(np.allclose(np.mean(hist), 2.2125984252))
         self.assertTrue(np.allclose(np.median(hist), 0))
+
+
+class TestTCNTempoHistogramProcessorClass(unittest.TestCase):
+
+    def setUp(self):
+        self.processor = TCNTempoHistogramProcessor(min_bpm=10, max_bpm=250)
+        self.act = Activations(pj(ACTIVATIONS_PATH,
+                                  "sample.beats_tcn_tempo.npz"))
+
+    def test_types(self):
+        self.assertIsInstance(self.processor.min_bpm, float)
+        self.assertIsInstance(self.processor.max_bpm, float)
+        self.assertIsNone(self.processor.fps)
+
+    def test_values(self):
+        self.assertTrue(self.processor.min_bpm == 10)
+        self.assertTrue(self.processor.max_bpm == 250)
+        self.assertTrue(np.sum(self.act) == 1)
+
+    def test_process(self):
+        hist, tempi = self.processor(self.act)
+        self.assertTrue(np.allclose(tempi, np.arange(10, 251)))
+        self.assertTrue(np.allclose(hist.max(), 0.1326968))
+        self.assertTrue(np.allclose(hist.min(), 5.05e-09))
+        self.assertTrue(np.allclose(hist.argmax(), 77))
+        self.assertTrue(np.allclose(hist.argmin(), 182))
+        # hist sum is not 1, since we excluded tempi < 10
+        self.assertTrue(np.allclose(np.sum(hist), 0.9999768))
+        self.assertTrue(np.allclose(np.mean(hist), 0.0041492814))
+        self.assertTrue(np.allclose(np.median(hist), 7.891e-06))
+
+    def test_tempo(self):
+        tempo_processor = TempoEstimationProcessor(
+            histogram_processor=self.processor, act_smooth=None)
+        tempi = tempo_processor(self.act)
+        self.assertTrue(tempi.shape == (14, 2))
+        self.assertTrue(np.allclose(tempi[:, 0],
+                        [87, 174, 58, 41, 115, 132, 100,
+                         32, 197, 246, 228, 23, 214, 14]))
+        self.assertTrue(np.allclose(np.sum(tempi[:, 1]), 1))
+
+    def test_tempo_hist_smooth(self):
+        tempo_processor = TempoEstimationProcessor(
+            histogram_processor=self.processor, act_smooth=None,
+            hist_smooth=15)
+        tempi = tempo_processor(self.act)
+        self.assertTrue(tempi.shape == (9, 2))
+        self.assertTrue(np.allclose(tempi[:5], TCN_TEMPI, atol=0.01))
 
 
 class TestWriteTempoFunction(unittest.TestCase):
