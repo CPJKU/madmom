@@ -863,7 +863,7 @@ def process_online(processor, infile, outfile, **kwargs):
     kwargs['sample_rate'] = kwargs.get('sample_rate', 44100)
     kwargs['num_channels'] = kwargs.get('num_channels', 1)
     # list all available PyAudio devices and exit afterwards
-    if kwargs['list_stream_input_device']:
+    if kwargs.get('list_stream_input_device'):
         import pyaudio
         pa = pyaudio.PyAudio()
         for i in range(pa.get_device_count()):
