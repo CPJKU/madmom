@@ -226,6 +226,9 @@ class Spectrogram(np.ndarray):
             Tuning frequency of the spectrogram.
 
         """
+        import warnings
+        warnings.warn('tuning_frequency() is deprecated as of version 0.17 '
+                      'and will be removed in 0.19.')
         from scipy.ndimage.filters import maximum_filter
         # widen the spectrogram in frequency dimension
         max_spec = maximum_filter(self, size=[1, 3])
