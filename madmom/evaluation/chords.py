@@ -54,7 +54,7 @@ def encode(chord_labels):
     Parameters
     ----------
     chord_labels : numpy structured array
-        Chord segments in `madmom.io.SEGMENT_DTYPE` format
+        Chord segments in `madmom.io.SEGMENT_DTYPE` format.
 
     Returns
     -------
@@ -728,10 +728,10 @@ class ChordEvaluation(EvaluationMixin):
 
     Parameters
     ----------
-    detections : str
-        File containing chords detections.
-    annotations : str
-        File containing chord annotations.
+    detections : numpy structured array
+        Detected chord segments in `madmom.io.SEGMENT_DTYPE` format.
+    annotations : numpy structured array
+        Annotated chord segments in `madmom.io.SEGMENT_DTYPE` format.
     name : str, optional
         Name of the evaluation object (e.g., the name of the song).
 
