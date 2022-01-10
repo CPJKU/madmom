@@ -12,6 +12,7 @@ import unittest
 from madmom.models import *
 from madmom.ml.nn import *
 from madmom.ml.nn.layers import *
+from madmom.ml.nn.activations import *
 
 
 class TestRNNClass(unittest.TestCase):
@@ -45,6 +46,7 @@ class TestRNNClass(unittest.TestCase):
 
 
 class TestLSTMClass(unittest.TestCase):
+
     def setUp(self):
         # uni-directional LSTM-RNN
         self.rnn = NeuralNetwork.load(BEATS_LSTM[0])
@@ -306,18 +308,18 @@ class TestGRUClass(unittest.TestCase):
     H = np.array([0.02345737, 0.34454183])
 
     def setUp(self):
-        self.reset_gate = layers.Gate(
+        self.reset_gate = Gate(
             TestGRUClass.W_xr, TestGRUClass.b_r, TestGRUClass.W_hr,
-            activation_fn=activations.sigmoid)
-        self.update_gate = layers.Gate(
+            activation_fn=sigmoid)
+        self.update_gate = Gate(
             TestGRUClass.W_xu, TestGRUClass.b_u, TestGRUClass.W_hu,
-            activation_fn=activations.sigmoid)
-        self.gru_cell = layers.GRUCell(
+            activation_fn=sigmoid)
+        self.gru_cell = GRUCell(
             TestGRUClass.W_xhu, TestGRUClass.b_hu, TestGRUClass.W_hhu)
-        self.gru_1 = layers.GRULayer(self.reset_gate, self.update_gate,
-                                     self.gru_cell)
-        self.gru_2 = layers.GRULayer(self.reset_gate, self.update_gate,
-                                     self.gru_cell, init=TestGRUClass.H)
+        self.gru_1 = GRULayer(self.reset_gate, self.update_gate,
+                              self.gru_cell)
+        self.gru_2 = GRULayer(self.reset_gate, self.update_gate,
+                              self.gru_cell, init=TestGRUClass.H)
 
     def test_activate(self):
         self.assertTrue(
@@ -369,6 +371,32 @@ class TestGRUClass(unittest.TestCase):
         self.assertTrue(np.allclose(self.gru_1.init, [0, 0]))
 
 
+class TestMaxPoolLayerClass(unittest.TestCase):
+
+    def test_time_pooling(self):
+        layer = MaxPoolLayer(size=(2, 1))
+        out = layer(np.arange(20).reshape(5, 4))
+        self.assertEqual(out.shape, (2, 4))
+        self.assertTrue(np.allclose(out, [[4, 5, 6, 7],
+                                          [12, 13, 14, 15]]))
+
+    def test_freq_pooling(self):
+        layer = MaxPoolLayer(size=(1, 2))
+        out = layer(np.arange(20).reshape(5, 4))
+        self.assertEqual(out.shape, (5, 2))
+        self.assertTrue(np.allclose(out, [[1, 3], [5, 7], [9, 11],
+                                          [13, 15], [17, 19]]))
+
+    def test_max_pooling(self):
+        layer = MaxPoolLayer((3, 3))
+        out = layer(np.arange(20).reshape((5, 4, 1)))
+        self.assertTrue(np.allclose(out, [[[10]]]))
+        out = layer(np.arange(60).reshape((5, 4, 3)))
+        self.assertTrue(np.allclose(out, [[[30, 31, 32]]]))
+        out = layer(np.arange(80).reshape((5, 4, 4)))
+        self.assertTrue(np.allclose(out, [[[40, 41, 42, 43]]]))
+
+
 class TestBatchNormLayerClass(unittest.TestCase):
 
     IN = np.array([[[0.32400414, 0.31483042],
@@ -400,9 +428,8 @@ class TestBatchNormLayerClass(unittest.TestCase):
         params = TestBatchNormLayerClass.BN_PARAMS
         x = TestBatchNormLayerClass.IN
         y_true = TestBatchNormLayerClass.OUT
-        bnl = layers.BatchNormLayer(
-            params[0], params[1], params[2], params[3], activations.linear)
-
+        bnl = BatchNormLayer(
+            params[0], params[1], params[2], params[3], linear)
         y = bnl.activate(x)
 
         self.assertTrue(np.allclose(y, y_true))
@@ -425,21 +452,21 @@ class TestAverageLayerClass(unittest.TestCase):
     OUT_02_KD = np.array([[[0.55077857], [0.44537673], [0.39767252]]])
 
     def test_average_layer(self):
-        al = layers.AverageLayer()
+        al = AverageLayer()
         out = al(TestAverageLayerClass.IN)
         self.assertAlmostEqual(out, TestAverageLayerClass.OUT_AVG)
 
-        al = layers.AverageLayer(axis=(0, 2))
+        al = AverageLayer(axis=(0, 2))
         out = al(TestAverageLayerClass.IN)
         self.assertEqual(out.shape, (3,))
         self.assertTrue(np.allclose(out, TestAverageLayerClass.OUT_02))
 
-        al = layers.AverageLayer(axis=(0, 2), keepdims=True)
+        al = AverageLayer(axis=(0, 2), keepdims=True)
         out = al(TestAverageLayerClass.IN)
         self.assertEqual(out.shape, (1, 3, 1))
         self.assertTrue(np.allclose(out, TestAverageLayerClass.OUT_02_KD))
 
-        al = layers.AverageLayer(axis=(0, 2), dtype=np.float32)
+        al = AverageLayer(axis=(0, 2), dtype=np.float32)
         out = al(TestAverageLayerClass.IN)
         self.assertEqual(out.dtype, np.float32)
 
@@ -449,15 +476,15 @@ class TestReshapeLayerClass(unittest.TestCase):
     IN = np.random.random((2, 3, 4))
 
     def test_reshape_layer(self):
-        rl = layers.ReshapeLayer(newshape=(3, 4, 2))
+        rl = ReshapeLayer(newshape=(3, 4, 2))
         self.assertEqual(rl(TestReshapeLayerClass.IN).shape, (3, 4, 2))
-        rl = layers.ReshapeLayer(newshape=(3, -1, 2))
+        rl = ReshapeLayer(newshape=(3, -1, 2))
         self.assertEqual(rl(TestReshapeLayerClass.IN).shape, (3, 4, 2))
-        rl = layers.ReshapeLayer(newshape=(-1,))
+        rl = ReshapeLayer(newshape=(-1,))
         self.assertEqual(rl(TestReshapeLayerClass.IN).shape, (24,))
 
         with self.assertRaises(ValueError):
-            rl = layers.ReshapeLayer(newshape=(3, 2, 2))
+            rl = ReshapeLayer(newshape=(3, 2, 2))
             rl(TestReshapeLayerClass.IN)
 
 
@@ -466,30 +493,30 @@ class TestTransposeLayerClass(unittest.TestCase):
     IN = np.random.random((2, 3, 4, 5))
 
     def test_transpose_layer(self):
-        tl = layers.TransposeLayer()
+        tl = TransposeLayer()
         self.assertEqual(tl(TestTransposeLayerClass.IN).shape, (5, 4, 3, 2))
 
-        tl = layers.TransposeLayer(axes=(2, 0, 1, 3))
+        tl = TransposeLayer(axes=(2, 0, 1, 3))
         self.assertEqual(tl(TestTransposeLayerClass.IN).shape, (4, 2, 3, 5))
 
         with self.assertRaises(ValueError):
-            tl = layers.TransposeLayer(axes=(0, 1, 3))
+            tl = TransposeLayer(axes=(0, 1, 3))
             tl(TestTransposeLayerClass.IN)
 
         with self.assertRaises(ValueError):
-            tl = layers.TransposeLayer(axes=(0, 1, 2, 3, 4))
+            tl = TransposeLayer(axes=(0, 1, 2, 3, 4))
             tl(TestTransposeLayerClass.IN)
 
         with self.assertRaises(ValueError):
-            tl = layers.TransposeLayer(axes=(0, 1, 1, 2))
+            tl = TransposeLayer(axes=(0, 1, 1, 2))
             tl(TestTransposeLayerClass.IN)
 
 
 class TestPadLayerClass(unittest.TestCase):
 
     def test_constant_padding(self):
-        pl = layers.PadLayer(width=2, axes=(0, 1), value=10.)
-        data = np.arange(40).reshape(5, 4, 2).astype(np.float)
+        pl = PadLayer(width=2, axes=(0, 1), value=10.)
+        data = np.arange(40).reshape(5, 4, 2).astype(float)
         out = pl(data)
 
         self.assertEqual(out.shape, (9, 8, 2))
@@ -499,7 +526,7 @@ class TestPadLayerClass(unittest.TestCase):
         self.assertTrue(np.allclose(out[:, :2, :], 10.))
         self.assertTrue(np.allclose(out[:, -2:, :], 10.))
 
-        pl = layers.PadLayer(width=3, axes=(2,), value=2.2)
+        pl = PadLayer(width=3, axes=(2,), value=2.2)
         out = pl(data)
 
         self.assertEqual(out.shape, (5, 4, 8))
@@ -508,81 +535,114 @@ class TestPadLayerClass(unittest.TestCase):
         self.assertTrue(np.allclose(out[:, :, -3:], 2.2))
 
 
-class ConvolutionalLayerClassTest(unittest.TestCase):
-
-    W1 = np.array([[[[0.69557322]],
-                    [[0.45649655]],
-                    [[0.58179561]]],
-                   [[[0.20438251]],
-                    [[0.17404747]],
-                    [[0.41624290]]]])
-
-    W3 = np.array([[[[0.57353216, 0.72422232, 0.15716315],
-                     [0.82000373, 0.26902348, 0.69203708],
-                     [0.45564084, 0.89265194, 0.98080186]],
-                    [[0.44920649, 0.52442715, 0.33103038],
-                     [0.24536095, 0.49307102, 0.28850389],
-                     [0.38324254, 0.46965330, 0.76865911]],
-                    [[0.44225901, 0.34989312, 0.92381997],
-                     [0.32123710, 0.04856574, 0.87387125],
-                     [0.70175767, 0.38149251, 0.40178089]]],
-                   [[[0.28197446, 0.35315104, 0.53862099],
-                     [0.01224023, 0.94672135, 0.87194315],
-                     [0.69193064, 0.27611521, 0.51076897]],
-                    [[0.22228372, 0.58605351, 0.17730248],
-                     [0.10949298, 0.43124835, 0.71336330],
-                     [0.57694486, 0.44623928, 0.11774881]],
-                    [[0.76850363, 0.46740177, 0.76900027],
-                     [0.61551742, 0.62841514, 0.05235070],
-                     [0.01321052, 0.93591818, 0.61256317]]]])
-
-    B = np.array([0.27614033, 0.87995416, 0.23540803])
-
-    O1 = np.array([[[0.97171354, 1.33645070, 0.81720366],
-                    [0.27614033, 0.87995416, 0.23540803],
-                    [0.27614033, 0.87995416, 0.23540803],
-                    [0.27614033, 0.87995416, 0.23540803],
-                    [0.48052284, 1.05400163, 0.65165093]],
-                   [[0.27614033, 0.87995416, 0.23540803],
-                    [0.97171354, 1.33645070, 0.81720366],
-                    [0.27614033, 0.87995416, 0.23540803],
-                    [0.48052284, 1.05400163, 0.65165093],
-                    [0.27614033, 0.87995416, 0.23540803]],
-                   [[0.27614033, 0.87995416, 0.23540803],
-                    [0.27614033, 0.87995416, 0.23540803],
-                    [1.17609602, 1.51049817, 1.23344656],
-                    [0.27614033, 0.87995416, 0.23540803],
-                    [0.27614033, 0.87995416, 0.23540803]],
-                   [[0.27614033, 0.87995416, 0.23540803],
-                    [0.48052284, 1.05400163, 0.65165093],
-                    [0.27614033, 0.87995416, 0.23540803],
-                    [0.97171354, 1.33645070, 0.81720366],
-                    [0.27614033, 0.87995416, 0.23540803]],
-                   [[0.48052284, 1.05400163, 0.65165093],
-                    [0.27614033, 0.87995416, 0.23540803],
-                    [0.27614033, 0.87995416, 0.23540803],
-                    [0.27614033, 0.87995416, 0.23540803],
-                    [0.97171354, 1.33645070, 0.81720366]]])
-
-    O3 = np.array([[[2.38147223, 2.81317455, 1.89651736],
-                    [2.05779099, 2.38843173, 2.54209157],
-                    [2.61057651, 2.39648026, 2.56985398]],
-                   [[2.35418737, 2.29051489, 2.02105685],
-                    [4.27677071, 3.77638656, 2.53863951],
-                    [2.84045803, 2.85248774, 2.44744130]],
-                   [[2.90905416, 2.44869238, 2.34779163],
-                    [3.13685429, 2.75457102, 1.92640647],
-                    [2.61026680, 2.70863968, 1.74057683]]])
+class TestConvolutionalLayerClass(unittest.TestCase):
 
     def setUp(self):
-        self.layer1x1 = ConvolutionalLayer(ConvolutionalLayerClassTest.W1,
-                                           ConvolutionalLayerClassTest.B)
-        self.layer3x3 = ConvolutionalLayer(ConvolutionalLayerClassTest.W3,
-                                           ConvolutionalLayerClassTest.B)
-        self.data = np.stack([np.eye(5), np.eye(5)[:, ::-1]], axis=-1)
+        # 1x1
+        tf_weights = np.array([[[[1., 0.5]]]])
+        weights = np.transpose(tf_weights, axes=(2, 3, 0, 1))
+        weights = np.flip(np.flip(weights, axis=2), axis=3)
+        bias = np.array([0., 2.])
+        self.layer1x1 = ConvolutionalLayer(weights, bias)
+        # 2x2
+        tf_weights = np.array([[[[1., 0.25]], [[0., 0.]]],
+                               [[[1., 1.]], [[1., 0.75]]]])
+        weights = np.transpose(tf_weights, axes=(2, 3, 0, 1))
+        weights = np.flip(np.flip(weights, axis=2), axis=3)
+        bias = np.array([0.5, 0.1])
+        self.layer2x2 = ConvolutionalLayer(weights, bias)
+        # 3x3
+        tf_weights = np.array([[[[1.]], [[1.]], [[1.]]],
+                               [[[0.]], [[1.]], [[1.]]],
+                               [[[0.]], [[0.]], [[2.]]]])
+        weights = np.transpose(tf_weights, axes=(2, 3, 0, 1))
+        weights = np.flip(np.flip(weights, axis=2), axis=3)
+        bias = np.array([1.])
+        self.layer3x3 = ConvolutionalLayer(weights, bias)
+        # 3x3 multi-channel
+        tf_weights = np.array([[[[1.], [2]], [[1], [0]], [[1], [3]]],
+                               [[[0.], [1]], [[1.], [-4]], [[1.], [-5]]],
+                               [[[0.], [2]], [[0.], [-2]], [[2.], [0]]]])
+        weights = np.transpose(tf_weights, axes=(2, 3, 0, 1))
+        weights = np.flip(np.flip(weights, axis=2), axis=3)
+        bias = np.array([1.])
+        self.layer3x3m = ConvolutionalLayer(weights, bias)
+        # data
+        self.x = np.arange(20, dtype=np.float32).reshape((5, 4, 1))
 
-    def test_activate(self):
-        out1 = self.layer1x1.activate(self.data)
-        self.assertTrue(np.allclose(out1, ConvolutionalLayerClassTest.O1))
-        out3 = self.layer3x3.activate(self.data)
-        self.assertTrue(np.allclose(out3, ConvolutionalLayerClassTest.O3))
+    def test_1x1(self):
+        out = self.layer1x1.activate(self.x)
+        self.assertEqual(out.shape, (5, 4, 2))
+        self.assertTrue(np.allclose(
+            out[..., 0], np.arange(20).reshape((5, 4))))
+        self.assertTrue(np.allclose(
+            out[..., 1], np.arange(20).reshape((5, 4)) / 2. + 2))
+
+    def test_1x1_pad_same(self):
+        self.layer1x1.pad = 'same'
+        out = self.layer1x1.activate(self.x)
+        self.assertEqual(out.shape, (5, 4, 2))
+
+    def test_2x2(self):
+        out = self.layer2x2.activate(self.x)
+        correct = np.array([[[9.5, 7.85], [12.5, 9.85], [15.5, 11.85]],
+                            [[21.5, 15.85], [24.5, 17.85], [27.5, 19.85]],
+                            [[33.5, 23.85], [36.5, 25.85], [39.5, 27.85]],
+                            [[45.5, 31.85], [48.5, 33.85], [51.5, 35.85]]])
+        self.assertEqual(out.shape, (4, 3, 2))
+        self.assertTrue(np.allclose(out, correct))
+        self.assertTrue(np.allclose(
+            out[..., 0], np.arange(9.5, 57.5, 3).reshape((4, 4))[:, :-1]))
+        self.assertTrue(np.allclose(
+            out[..., 1], np.arange(7.85, 39.85, 2).reshape((4, 4))[:, :-1]))
+
+    def test_2x2_pad_same(self):
+        self.layer2x2.pad = 'same'
+        out = self.layer2x2.activate(self.x)
+        correct = np.array([[[9.5, 7.85], [12.5, 9.85],
+                             [15.5, 11.85], [10.5, 7.85]],
+                            [[21.5, 15.85], [24.5, 17.85],
+                             [27.5, 19.85], [18.5, 12.85]],
+                            [[33.5, 23.85], [36.5, 25.85],
+                             [39.5, 27.85], [26.5, 17.85]],
+                            [[45.5, 31.85], [48.5, 33.85],
+                             [51.5, 35.85], [34.5, 22.85]],
+                            [[16.5, 4.10], [17.5, 4.35],
+                             [18.5, 4.60], [19.5, 4.85]]])
+        self.assertEqual(out.shape, (5, 4, 2))
+        self.assertTrue(np.allclose(out, correct))
+
+    def test_3x3(self):
+        out = self.layer3x3.activate(self.x)
+        correct = np.array([[[35], [42]], [[63], [70]], [[91], [98]]])
+        self.assertEqual(out.shape, (3, 2, 1))
+        self.assertTrue(np.allclose(out, correct))
+
+    def test_3x3_pad_same(self):
+        self.layer3x3.pad = 'same'
+        out = self.layer3x3.activate(self.x)
+        correct = np.array([[[[12], [16], [20], [4]],
+                             [[29], [35], [42], [13]],
+                             [[53], [63], [70], [25]],
+                             [[77], [91], [98], [37]],
+                             [[59], [75], [80], [49]]]])
+        self.assertEqual(out.shape, (5, 4, 1))
+        self.assertTrue(np.allclose(out, correct))
+
+    def test_3x3_multi_channel(self):
+        # padding 'valid'
+        x = np.arange(40, dtype=np.float32).reshape((5, 4, 2))
+        out = self.layer3x3m.activate(x)
+        correct = np.array([[[-18], [-10]], [[14], [22]], [[46], [54]]])
+        self.assertEqual(out.shape, (3, 2, 1))
+        self.assertTrue(np.allclose(out, correct))
+        # with padding 'same'
+        self.layer3x3m.pad = 'same'
+        out = self.layer3x3m.activate(x)
+        correct = np.array([[[-14], [-9], [-17], [-20]],
+                            [[-59], [-18], [-10], [-16]],
+                            [[-75], [14], [22], [0]],
+                            [[-91], [46], [54], [16]],
+                            [[-109], [-6], [-2], [36]]])
+        self.assertEqual(out.shape, (5, 4, 1))
+        self.assertTrue(np.allclose(out, correct))

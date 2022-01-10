@@ -20,8 +20,8 @@ from madmom.ml.hmm import HiddenMarkovModel
 sample_file = pj(AUDIO_PATH, "sample.wav")
 sample_lstm_act = Activations(pj(ACTIVATIONS_PATH, "sample.beats_lstm.npz"))
 sample_blstm_act = Activations(pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
-sample_downbeat_act = Activations(pj(ACTIVATIONS_PATH,
-                                     "sample.downbeats_blstm.npz"))
+sample_tcn_act = Activations(pj(ACTIVATIONS_PATH,
+                                "sample.beats_tcn_beats.npz"))
 sample_pattern_features = Activations(pj(ACTIVATIONS_PATH,
                                          "sample.gmm_pattern_tracker.npz"))
 
@@ -54,6 +54,16 @@ class TestRNNBeatProcessorClass(unittest.TestCase):
         # result must be different without resetting
         result_3 = np.hstack([self.processor(f, reset=False) for f in frames])
         self.assertFalse(np.allclose(result, result_3))
+
+
+class TestTCNBeatProcessorClass(unittest.TestCase):
+
+    def setUp(self):
+        self.processor = TCNBeatProcessor()
+
+    def test_process_tcn(self):
+        beat_act = self.processor(sample_file)
+        self.assertTrue(np.allclose(beat_act, sample_tcn_act, atol=1e-5))
 
 
 class TestBeatTrackingProcessorClass(unittest.TestCase):
@@ -148,12 +158,15 @@ class TestDBNBeatTrackingProcessorClass(unittest.TestCase):
         processor.reset()
         beats = [processor.process_forward(np.atleast_1d(act), reset=False)
                  for act in sample_lstm_act]
-        self.assertTrue(np.allclose(np.nonzero(beats),
+        beats = np.array([b.size > 0 for b in beats])
+        self.assertTrue(np.allclose(np.nonzero(beats)[0],
                                     [47, 79, 148, 216, 250]))
         # without resetting results are different
         beats = [processor.process_forward(np.atleast_1d(act), reset=False)
                  for act in sample_lstm_act]
-        self.assertTrue(np.allclose(np.nonzero(beats), [3, 79, 149, 216, 252]))
+        beats = np.array([b.size > 0 for b in beats])
+        self.assertTrue(np.allclose(np.nonzero(beats)[0],
+                                    [3, 79, 149, 216, 252]))
 
     def test_empty_path(self):
         # beat activation which leads to an empty path

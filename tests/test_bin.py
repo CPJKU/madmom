@@ -119,6 +119,47 @@ def run_help(program):
 
 # TODO: can we speed up these tests?
 
+class TestDifferentFileFormats(unittest.TestCase):
+
+    def setUp(self):
+        # use SuperFlux since it is fast
+        self.bin = pj(program_path, "SuperFlux")
+        self.result = [0.14, 1.57, 2.52, 3.365, 4.14]
+        self.result_file = pj(AUDIO_PATH, 'stereo_sample.onsets.txt')
+
+    def test_single_wav(self):
+        run_single(self.bin, stereo_sample_file, tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result))
+
+    def test_single_flac(self):
+        run_single(self.bin, stereo_sample_file[:-3] + 'flac', tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result))
+
+    def test_single_m4a(self):
+        run_single(self.bin, stereo_sample_file[:-3] + 'm4a', tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result))
+
+    def test_batch_wav(self):
+        run_batch(self.bin, [stereo_sample_file])
+        result = np.loadtxt(self.result_file)
+        os.unlink(self.result_file)
+        self.assertTrue(np.allclose(result, self.result))
+
+    def test_batch_flac(self):
+        run_batch(self.bin, [stereo_sample_file[:-3] + 'flac'])
+        result = np.loadtxt(self.result_file)
+        os.unlink(self.result_file)
+        self.assertTrue(np.allclose(result, self.result))
+
+    def test_batch_m4a(self):
+        run_batch(self.bin, [stereo_sample_file[:-3] + 'm4a'])
+        result = np.loadtxt(self.result_file)
+        os.unlink(self.result_file)
+        self.assertTrue(np.allclose(result, self.result))
+
 
 class TestBarTrackerProgram(unittest.TestCase):
 
@@ -994,6 +1035,34 @@ class TestSuperFluxNNProgram(unittest.TestCase):
         self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
 
+class TestTCNBeatTrackerProgram(unittest.TestCase):
+
+    def setUp(self):
+        self.bin = pj(program_path, "TCNBeatTracker")
+        self.activations = Activations(
+            pj(ACTIVATIONS_PATH, "sample.beats_tcn_beats.npz"))
+        self.result = np.loadtxt(
+            pj(DETECTIONS_PATH, "sample.tcn_beat_tracker.txt"))
+
+    def test_help(self):
+        self.assertTrue(run_help(self.bin))
+
+    def test_binary(self):
+        # save activations as binary file
+        run_save(self.bin, sample_file, tmp_act)
+        act = Activations(tmp_act)
+        self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
+        # reload from file
+        run_load(self.bin, tmp_act, tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+
+    def test_run(self):
+        run_single(self.bin, sample_file, tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+
+
 class TestTempoDetectorProgram(unittest.TestCase):
 
     def setUp(self):
@@ -1052,6 +1121,34 @@ class TestTempoDetectorProgram(unittest.TestCase):
         self.assertTrue(np.allclose(
             result, [[176.47, 0.475], [117.65, 0.177], [240.00, 0.154],
                      [68.97, 0.099], [82.19, 0.096]]))
+
+
+class TestTCNTempoDetectorProgram(unittest.TestCase):
+
+    def setUp(self):
+        self.bin = pj(program_path, "TCNTempoDetector")
+        self.activations = Activations(
+            pj(ACTIVATIONS_PATH, "sample.beats_tcn_tempo.npz"))
+        self.result = np.loadtxt(
+            pj(DETECTIONS_PATH, "sample.tcn_tempo_detector.txt"))
+
+    def test_help(self):
+        self.assertTrue(run_help(self.bin))
+
+    def test_binary(self):
+        # save activations as binary file
+        run_save(self.bin, sample_file, tmp_act)
+        act = Activations(tmp_act)
+        self.assertTrue(np.allclose(act, self.activations, atol=1e-5))
+        # reload from file
+        run_load(self.bin, tmp_act, tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+
+    def test_run(self):
+        run_single(self.bin, sample_file, tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
 
 
 # clean up

@@ -105,8 +105,8 @@ def tempo_evaluation(detections, annotations, tolerance=TOLERANCE):
     if float(tolerance) <= 0:
         raise ValueError('tolerance must be greater than 0')
     # make sure the annotations and detections have a float dtype
-    detections = np.array(detections, dtype=np.float, ndmin=1)
-    annotations = np.array(annotations, dtype=np.float, ndmin=1)
+    detections = np.array(detections, dtype=float, ndmin=1)
+    annotations = np.array(annotations, dtype=float, ndmin=1)
     # extract the detected tempi, ignore the strengths
     if detections.ndim == 2:
         detections = detections[:, 0]
@@ -130,7 +130,7 @@ def tempo_evaluation(detections, annotations, tolerance=TOLERANCE):
     # test all detected tempi against all annotated tempi
     errors = np.abs(1 - (detections[:, np.newaxis] / annotations))
     # correctly identified annotation tempi
-    correct = np.asarray(np.sum(errors <= tolerance, axis=0), np.bool)
+    correct = np.asarray(np.sum(errors <= tolerance, axis=0), bool)
     # the P-Score is the sum of the strengths of the correctly identified tempi
     pscore = np.sum(strengths[correct])
     # return the scores
@@ -185,8 +185,8 @@ class TempoEvaluation(EvaluationMixin):
                  name=None, **kwargs):
         # pylint: disable=unused-argument
         # convert to numpy array
-        detections = np.array(detections, dtype=np.float, ndmin=1)
-        annotations = np.array(annotations, dtype=np.float, ndmin=1)
+        detections = np.array(detections, dtype=float, ndmin=1)
+        annotations = np.array(annotations, dtype=float, ndmin=1)
         if sort and detections.ndim == 2:
             detections = sort_tempo(detections)
         if sort and annotations.ndim == 2:

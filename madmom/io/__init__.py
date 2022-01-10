@@ -19,7 +19,7 @@ ENCODING = 'utf8'
 
 # dtype for numpy structured arrays that contain labelled segments
 # 'label' needs to be castable to str
-SEGMENT_DTYPE = [('start', np.float), ('end', np.float), ('label', object)]
+SEGMENT_DTYPE = [('start', float), ('end', float), ('label', object)]
 
 
 # overwrite the built-in open() to transparently apply some magic file handling
@@ -144,15 +144,11 @@ def load_beats(filename, downbeats=False):
         Beats.
 
     """
-    values = np.loadtxt(filename, ndmin=1)
-    if values.ndim > 1:
-        if downbeats:
-            # rows with a "1" in the 2nd column are downbeats
-            return values[values[:, 1] == 1][:, 0]
-        else:
-            # 1st column is the beat time, the rest is ignored
-            return values[:, 0]
-    return values
+    values = np.loadtxt(filename, ndmin=2)
+    if downbeats:
+        # rows with a "1" in the 2nd column are downbeats
+        values = values[values[:, 1] == 1]
+    return values[:, 0]
 
 
 def write_beats(beats, filename, fmt=None, delimiter='\t', header=None):

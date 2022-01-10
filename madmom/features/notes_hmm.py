@@ -116,7 +116,7 @@ class ADSRTransitionModel(TransitionModel):
         t.append((release, release, 1. - end_prob))
         t = np.array(t)
         # make the transitions sparse
-        t = self.make_sparse(t[:, 1].astype(np.int), t[:, 0].astype(np.int),
+        t = self.make_sparse(t[:, 1].astype(int), t[:, 0].astype(int),
                              t[:, 2])
         # instantiate a TransitionModel
         super(ADSRTransitionModel, self).__init__(*t)
@@ -166,7 +166,7 @@ class ADSRObservationModel(ObservationModel):
 
         """
         # observations: notes, onsets, offsets
-        densities = np.ones((len(observations), 4), dtype=np.float)
+        densities = np.ones((len(observations), 4), dtype=float)
         # silence (not onset)
         densities[:, 0] = 1. - observations[:, 1]
         # attack: onset

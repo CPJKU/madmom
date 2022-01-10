@@ -1,0 +1,20 @@
+name: madmom
+channels:
+  - conda-forge
+  - nodefaults
+dependencies:
+  - python
+  - cython>=0.25
+  - numpy
+  - scipy
+  - opencv
+  - portaudio
+  - pip
+  - pip:
+      - mido>=1.2.6
+      - pyfftw
+      - pyaudio
+      - pytest
+      - black
+      - pre-commit
+      - prospector

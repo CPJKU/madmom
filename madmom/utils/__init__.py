@@ -10,6 +10,7 @@ Utility package.
 
 from __future__ import absolute_import, division, print_function
 
+import io
 import argparse
 import contextlib
 
@@ -23,6 +24,13 @@ try:
 except NameError:
     string_types = str
     integer_types = (int, np.integer)
+
+
+# Python 2/3 file compatibility
+try:
+    file_types = (io.IOBase, file)
+except NameError:
+    file_types = io.IOBase
 
 
 # decorator to suppress warnings
@@ -294,7 +302,7 @@ def combine_events(events, delta, combine='mean'):
     if len(events) <= 1:
         return events
     # convert to numpy array or create a copy if needed
-    events = np.array(events, dtype=np.float)
+    events = np.array(events, dtype=float)
     # can handle only 1D events
     if events.ndim > 1:
         raise ValueError('only 1-dimensional events supported.')
@@ -346,7 +354,7 @@ def quantize_events(events, fps, length=None, shift=None):
 
     """
     # convert to numpy array or create a copy if needed
-    events = np.array(events, dtype=np.float)
+    events = np.array(events, dtype=float)
     # can handle only 1D events
     if events.ndim != 1:
         raise ValueError('only 1-dimensional events supported.')
@@ -370,7 +378,7 @@ def quantize_events(events, fps, length=None, shift=None):
     # quantize
     events *= fps
     # indices to be set in the quantized array
-    idx = np.unique(np.round(events).astype(np.int))
+    idx = np.unique(np.round(events).astype(int))
     quantized[idx] = 1
     # return the quantized array
     return quantized
@@ -414,7 +422,7 @@ def quantize_notes(notes, fps, length=None, num_pitches=None, velocity=None):
 
     """
     # convert to numpy array or create a copy if needed
-    notes = np.array(np.array(notes).T, dtype=np.float, ndmin=2).T
+    notes = np.array(np.array(notes).T, dtype=float, ndmin=2).T
     # check supported dims and shapes
     if notes.ndim != 2:
         raise ValueError('only 2-dimensional notes supported.')
@@ -422,7 +430,7 @@ def quantize_notes(notes, fps, length=None, num_pitches=None, velocity=None):
         raise ValueError('notes must have at least 2 columns.')
     # split the notes into columns
     note_onsets = notes[:, 0]
-    note_numbers = notes[:, 1].astype(np.int)
+    note_numbers = notes[:, 1].astype(int)
     note_offsets = np.copy(note_onsets)
     if notes.shape[1] > 2:
         note_offsets += notes[:, 2]
@@ -440,8 +448,8 @@ def quantize_notes(notes, fps, length=None, num_pitches=None, velocity=None):
     # init array
     quantized = np.zeros((length, num_pitches))
     # quantize onsets and offsets
-    note_onsets = np.round((note_onsets * fps)).astype(np.int)
-    note_offsets = np.round((note_offsets * fps)).astype(np.int) + 1
+    note_onsets = np.round((note_onsets * fps)).astype(int)
+    note_offsets = np.round((note_offsets * fps)).astype(int) + 1
     # iterate over all notes
     for n, note in enumerate(notes):
         # use only the notes which fit in the array and note number >= 0

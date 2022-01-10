@@ -36,7 +36,7 @@ class TestBinFrequenciesFunction(unittest.TestCase):
     def test_types(self):
         result = fft_frequencies(5, 10)
         self.assertIsInstance(result, np.ndarray)
-        self.assertEqual(result.dtype, np.float)
+        self.assertEqual(result.dtype, float)
 
     def test_value(self):
         result = fft_frequencies(5, 10)
@@ -106,19 +106,19 @@ class TestPhaseFunction(unittest.TestCase):
 
     def test_types(self):
         result = phase(np.random.rand(10))
-        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.dtype == float)
         self.assertTrue(result.shape == (10, ))
         result = phase(np.random.rand(10, 2))
-        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.dtype == float)
         self.assertTrue(result.shape == (10, 2))
         # complex data
         data = np.random.rand(10) + 1j * np.random.rand(10)
         result = phase(data)
-        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.dtype == float)
         self.assertTrue(result.shape == (10, ))
         data = np.random.rand(10, 2) + 1j * np.random.rand(10, 2)
         result = phase(data)
-        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.dtype == float)
         self.assertTrue(result.shape == (10, 2))
 
     def test_values(self):
@@ -132,7 +132,7 @@ class TestLocalGroupDelayFunction(unittest.TestCase):
 
     def test_types(self):
         result = local_group_delay(np.random.rand(10, 2))
-        self.assertTrue(result.dtype == np.float)
+        self.assertTrue(result.dtype == float)
         self.assertTrue(result.shape == (10, 2))
         with self.assertRaises(ValueError):
             local_group_delay(np.arange(10))

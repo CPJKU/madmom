@@ -64,6 +64,7 @@ class TestLoadBeatsFunction(unittest.TestCase):
     def test_load_beats_from_file(self):
         beats = load_beats(pj(ANNOTATIONS_PATH, 'sample.beats'))
         from tests.test_evaluation_beats import SAMPLE_BEAT_ANNOTATIONS
+
         self.assertTrue(np.allclose(beats, SAMPLE_BEAT_ANNOTATIONS))
 
     def test_load_downbeats_from_file(self):

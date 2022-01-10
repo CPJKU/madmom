@@ -249,7 +249,7 @@ class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
     >>> frames  # doctest: +ELLIPSIS
     <madmom.audio.signal.FramedSignal object at 0x...>
     >>> stft = ShortTimeFourierTransform(frames)
-    >>> stft  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    >>> stft  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +NORMALIZE_FFT
     ShortTimeFourierTransform([[-3.15249+0.j     ,  2.62216-3.02425j, ...,
                                 -0.03634-0.00005j,  0.0367 +0.00029j],
                                [-4.28429+0.j     ,  2.02009+2.01264j, ...,
@@ -270,14 +270,14 @@ class ShortTimeFourierTransform(_PropertyMixin, np.ndarray):
     Doing the same with a Signal of float data-type will result in a STFT of
     same value range (rounding errors will occur of course):
 
-    >>> sig = Signal('tests/data/audio/sample.wav', dtype=np.float)
+    >>> sig = Signal('tests/data/audio/sample.wav', dtype=float)
     >>> sig  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     Signal([-0.07611, -0.0766 , ...,  0.01999,  0.0195 ])
     >>> frames = FramedSignal(sig, frame_size=2048, hop_size=441)
     >>> frames  # doctest: +ELLIPSIS
     <madmom.audio.signal.FramedSignal object at 0x...>
     >>> stft = ShortTimeFourierTransform(frames)
-    >>> stft  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    >>> stft  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +NORMALIZE_FFT
     ShortTimeFourierTransform([[-3.1524 +0.j     ,  2.62208-3.02415j, ...,
                                 -0.03633-0.00005j,  0.0367 +0.00029j],
                                [-4.28416+0.j     ,  2.02003+2.01257j, ...,
@@ -455,7 +455,7 @@ class ShortTimeFourierTransformProcessor(Processor):
 
     >>> proc = ShortTimeFourierTransformProcessor()
     >>> stft = proc('tests/data/audio/sample.wav')
-    >>> stft  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    >>> stft  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +NORMALIZE_FFT
     ShortTimeFourierTransform([[-3.15249+0.j     ,  2.62216-3.02425j, ...,
                                 -0.03634-0.00005j,  0.0367 +0.00029j],
                                [-4.28429+0.j     ,  2.02009+2.01264j, ...,
@@ -572,7 +572,7 @@ class Phase(_PropertyMixin, np.ndarray):
 
     >>> stft = ShortTimeFourierTransform('tests/data/audio/sample.wav')
     >>> phase = Phase(stft)
-    >>> phase  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
+    >>> phase  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS +NORMALIZE_FFT
     Phase([[ 3.14159, -0.85649, ..., -3.14016,  0.00779],
            [ 3.14159,  0.78355, ..., -2.70136,  1.81393],
            ...,

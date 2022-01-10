@@ -18,6 +18,7 @@ sample_file = pj(AUDIO_PATH, 'sample.wav')
 sample_file_22k = pj(AUDIO_PATH, 'sample_22050.wav')
 stereo_sample_file = pj(AUDIO_PATH, 'stereo_sample.wav')
 flac_file = pj(AUDIO_PATH, 'stereo_sample.flac')
+m4a_file = pj(AUDIO_PATH, 'stereo_sample.m4a')
 rg_flac_file = pj(AUDIO_PATH, 'stereo_sample_rg.flac')
 loud_rg_flac_file = pj(AUDIO_PATH, 'stereo_chirp_rg.flac')
 
@@ -97,7 +98,7 @@ class TestLoadWaveFileFunction(unittest.TestCase):
             load_wave_file(sample_file, sample_rate=22050)
         # resampling of wav not supported
         with self.assertRaises(ValueError):
-            load_wave_file(sample_file, dtype=np.float)
+            load_wave_file(sample_file, dtype=float)
         # file not found
         with self.assertRaises(IOError):
             load_wave_file(pj(AUDIO_PATH, 'foo_bar.wav'))
@@ -340,7 +341,7 @@ class TestDecodeToDisk(unittest.TestCase):
 class TestLoadAudioFromFileObject(unittest.TestCase):
 
     def test_file_object(self):
-        for file_path in [sample_file, flac_file]:
+        for file_path in [sample_file, flac_file, m4a_file]:
             disk_signal = Signal(file_path)
             with open(file_path, 'rb') as file_handle:
                 memory_signal = Signal(io.BytesIO(file_handle.read()))

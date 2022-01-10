@@ -76,9 +76,6 @@ class Activations(np.ndarray):
             obj = cls.load(data, fps, sep)
         else:
             raise TypeError("wrong input data for Activations")
-        # frame rate must be set
-        if obj.fps is None:
-            raise TypeError("frame rate for Activations must be set")
         # return the object
         return obj
 
@@ -121,9 +118,12 @@ class Activations(np.ndarray):
             # numpy binary format
             data = np.load(infile)
             if isinstance(data, np.lib.npyio.NpzFile):
-                # .npz file, set the frame rate if none is given
-                if fps is None:
-                    fps = float(data['fps'])
+                # .npz file, extract the frame rate if given
+                if 'fps' in data.files:
+                    try:
+                        fps = float(data['fps'])
+                    except ValueError:
+                        fps = None
                 # and overwrite the data
                 data = data['activations']
         else:

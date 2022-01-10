@@ -1,4 +1,4 @@
 # fake requirements for readthedocs
 cython
-numpydoc
 mido
+numpydoc

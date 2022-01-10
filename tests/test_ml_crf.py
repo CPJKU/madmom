@@ -30,6 +30,7 @@ def _to_onehot(seq, num_states):
     oh[range(len(seq)), seq] = 1
     return oh
 
+
 OBS_SEQ_1 = _to_onehot(np.array([0, 0, 1, 0, 0, 2, 1, 0, 2, 1, 0, 1, 1, 1, 0,
                                  2, 0, 2, 0, 1, 1, 2, 0, 0, 0, 1]), 3)
 OBS_SEQ_2 = _to_onehot(np.array([2, 2, 2, 2, 1, 0, 2, 0, 0, 0, 1, 1, 1, 2, 0,

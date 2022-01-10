@@ -358,8 +358,8 @@ def energy(signal):
     if np.iscomplex(signal).any():
         signal = np.abs(signal)
     # Note: type conversion needed because of integer overflows
-    if signal.dtype != np.float:
-        signal = signal.astype(np.float)
+    if signal.dtype != float:
+        signal = signal.astype(float)
     # return energy
     return np.dot(signal.flatten(), signal.flatten())
 
@@ -637,6 +637,22 @@ class Signal(np.ndarray):
         self.sample_rate = getattr(obj, 'sample_rate', None)
         self.start = getattr(obj, 'start', None)
         self.stop = getattr(obj, 'stop', None)
+
+    def __reduce__(self):
+        # Get the parent's __reduce__ tuple
+        state = super(Signal, self).__reduce__()
+        # Create our own tuple to pass to __setstate__, but append the
+        # __dict__ rather than individual members
+        new_state = state[2] + (self.__dict__,)
+        # Return a tuple that replaces the parent's __setstate__ tuple with
+        # our own
+        return state[0], state[1], new_state
+
+    def __setstate__(self, state):
+        # Update the internal dict from state
+        self.__dict__.update(state[-1])
+        # Call the parent's __setstate__ with the other tuple elements
+        super(Signal, self).__setstate__(state[:-1])
 
     @property
     def num_samples(self):
