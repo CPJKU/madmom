@@ -309,11 +309,8 @@ class KeyMeanEvaluation(EvaluationMixin):
 
     def __init__(self, eval_objects, name=None):
         self.name = name or 'mean for {:d} files'.format(len(eval_objects))
-        self.relative_of_fifth_present = False
-        if check_key_eval_objects(eval_objects):
+        if _check_key_eval_objects(eval_objects):
             self._count_evaluations(eval_objects)
-            if self.relative_of_fifth > 0:
-                self.relative_of_fifth_present = True
         else:
             raise ValueError('The KeyEvaluation objects are not '
                              'all the same.')
@@ -326,7 +323,10 @@ class KeyMeanEvaluation(EvaluationMixin):
         self.relative = float(c['relative']) / n
         self.parallel = float(c['parallel']) / n
         self.other = float(c['other']) / n
-        self.relative_of_fifth = float(c['relative_of_fifth']) / n
+        if 'relative_of_fifth' in c.keys():
+            self.relative_of_fifth = float(c['relative_of_fifth']) / n
+        else:
+            self.relative_of_fifth = None
         self.weighted = sum(e.score for e in eval_objects) / n
 
     def tostring(self, **kwargs):
@@ -337,7 +337,7 @@ class KeyMeanEvaluation(EvaluationMixin):
         ret += 'Correct: {:.3f}'.format(self.correct) + spacing
         ret += 'Fifth: {:.3f}'.format(self.fifth) + spacing
         ret += 'Relative: {:.3f}'.format(self.relative) + spacing
-        if self.relative_of_fifth_present:
+        if self.relative_of_fifth:
             ret += 'Relative of fifth: {:.3f}'.format(self.relative_of_fifth) \
                    + spacing
         ret += 'Parallel: {:.3f}'.format(self.parallel) + spacing
@@ -345,41 +345,26 @@ class KeyMeanEvaluation(EvaluationMixin):
         return ret
 
 
-def check_key_eval_objects(key_eval_objects):
+def _check_key_eval_objects(key_eval_objects):
     """
     Check whether all the key evaluation objects in a list have the same way of
-    scoring errors, evaluating fifth and if they include relative of fifth
+    scoring errors
 
     Parameters:
     ----------
     key_eval_objects: list
         Key evaluation objects
     """
-    error_scores_OK = check_error_scores(key_eval_objects)
-    strict_fifth_OK = check_strict_fifth(key_eval_objects)
-    rel_fifth_OK = check_relative_of_fifth(key_eval_objects)
-    return error_scores_OK and strict_fifth_OK and rel_fifth_OK
-
-
-def check_error_scores(key_eval_objects):
-    all_the_same = True
-    ind_eval = 0
-    while (ind_eval < len(key_eval_objects) - 1) and all_the_same:
-        if key_eval_objects[ind_eval].error_scores \
-                != key_eval_objects[ind_eval + 1].error_scores:
-            all_the_same = False
-            break
-        else:
-            ind_eval += 1
-    return all_the_same
-
-
-def check_strict_fifth(key_eval_objects):
-    return len(set([e.strict_fifth for e in key_eval_objects])) == 1
-
-
-def check_relative_of_fifth(key_eval_objects):
-    return len(set([e.relative_of_fifth for e in key_eval_objects])) == 1
+    if len(key_eval_objects) > 0:
+        e = key_eval_objects[0]
+        for ke in key_eval_objects[1:]:
+            if (ke.error_scores != e.error_scores or
+                    ke.strict_fifth != e.strict_fifth or
+                    ke.relative_of_fifth != e.relative_of_fifth):
+                return False
+        return True
+    else:
+        raise ValueError('No KeyEvaluation objects to check.')
 
 
 def add_parser(parser):

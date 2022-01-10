@@ -325,7 +325,6 @@ class TestKeyMeanEvaluation(unittest.TestCase):
         self.assertAlmostEqual(mean_eval.correct, 1.0 / len(evals))
         self.assertAlmostEqual(mean_eval.fifth, 0.0)
         self.assertAlmostEqual(mean_eval.relative, 1.0 / len(evals))
-        self.assertAlmostEqual(mean_eval.relative_of_fifth, 0.0)
         self.assertAlmostEqual(mean_eval.parallel, 1.0 / len(evals))
         self.assertAlmostEqual(mean_eval.other, 1.0 / len(evals))
         self.assertAlmostEqual(mean_eval.weighted, 0.375)
