@@ -947,6 +947,14 @@ def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
     # add general options
     parser.add_argument('-v', dest='verbose', action='count',
                         help='increase verbosity level')
+
+    # print usage if no processing mode is set
+    def print_usage(*args, **kwargs):
+        parser.print_usage()
+        exit(0)
+
+    parser.set_defaults(func=print_usage)
+
     # add subparsers
     sub_parsers = parser.add_subparsers(title='processing options')
 

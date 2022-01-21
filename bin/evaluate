@@ -52,6 +52,11 @@ def main():
     # parse the args
     args = p.parse_args()
 
+    # print usage if no evaluation mode was set
+    if not getattr(args, 'eval', False):
+        p.print_usage()
+        exit(0)
+
     # print the arguments
     if args.verbose >= 2:
         print(args)
