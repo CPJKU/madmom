@@ -192,6 +192,9 @@ class NeuralNetworkEnsemble(SequentialProcessor):
 
         """
         networks = [NeuralNetwork.load(f) for f in nn_files]
+        # raise error if no NNs were loaded
+        if not networks:
+            raise ValueError('No neural network(s) could be loaded.')
         return cls(networks, **kwargs)
 
     @staticmethod
