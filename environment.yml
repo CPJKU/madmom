@@ -11,15 +11,15 @@ dependencies:
   - portaudio
   - pyfftw
   - ffmpeg
+  - pyaudio
   - pip
   - pip:
-      - mido>=1.2.6
-      - pyaudio
-      - flake8<4
-      - coverage
-      - pytest
-      - pytest-cov
-      - pytest-flake8
-      - black
-      - pre-commit
-      - prospector
+    - mido>=1.2.6
+    - flake8<4
+    - coverage
+    - pytest
+    - pytest-cov
+    - pytest-flake8
+    - black
+    - pre-commit
+    - prospector
