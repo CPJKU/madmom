@@ -1,0 +1,73 @@
+name: Python Package using Conda
+
+on: [push]
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        shell: bash -l {0}
+
+    strategy:
+      max-parallel: 5
+      fail-fast: false
+      matrix:
+        python-version: [ "3.7", "3.8", "3.9", "3.10" ]
+
+    steps:
+    - uses: actions/checkout@v2
+
+    - name: Cache conda
+      uses: actions/cache@v2
+      env:
+        CACHE_NUMBER: 1  # increment this value to reset cache if environment.yml has not changed
+      with:
+        path: ~/conda_pkgs_dir
+        key: ${{ runner.os }}-${{ matrix.python-version }}-conda-${{ env.CACHE_NUMBER }}
+
+    - name: Install Conda env
+      uses: conda-incubator/setup-miniconda@v2
+      with:
+        auto-update-conda: true
+        python-version: ${{ matrix.python-version }}
+        add-pip-as-python-dependency: true
+        auto-activate-base: false
+        activate-environment: madmom
+        environment-file: environment.yml
+        use-only-tar-bz2: true  # this needs to be set for caching to work properly
+
+    - name: Conda info
+      run: |
+        conda info -a
+        conda list
+
+    - name: Install madmom
+      run: |
+        pip install -e .
+        git submodule update --init --remote
+
+    - name: Lint with flake8
+      run: |
+        # stop the build if there are Python syntax errors or undefined names
+        flake8 . --count --exit-zero --select=E9,F63,F7,F82 --show-source --statistics
+        # exit-zero treats all errors as warnings. The GitHub editor is 127 chars wide
+        flake8 . --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+    - name: Test with pytest
+      run: |
+        pytest --cov --doctest-ignore-import-errors madmom tests
+
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        files: ./coverage.xml
+        directory: ./coverage/reports/
+        flags: unittests
+        env_vars: OS,PYTHON
+        name: codecov-umbrella
+        fail_ci_if_error: true
+        path_to_write_report: ./coverage/codecov_report.txt
+        verbose: true

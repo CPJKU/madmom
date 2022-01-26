@@ -31,9 +31,15 @@ extensions = [
         ['madmom/features/beats_crf.pyx'],
         include_dirs=include_dirs,
     ),
-    Extension('madmom.ml.hmm', ['madmom/ml/hmm.pyx'], include_dirs=include_dirs),
     Extension(
-        'madmom.ml.nn.layers', ['madmom/ml/nn/layers.py'], include_dirs=include_dirs
+        'madmom.ml.hmm',
+        ['madmom/ml/hmm.pyx'],
+        include_dirs=include_dirs
+    ),
+    Extension(
+        'madmom.ml.nn.layers',
+        ['madmom/ml/nn/layers.py'],
+        include_dirs=include_dirs,
     ),
 ]
 
@@ -44,10 +50,10 @@ scripts = glob.glob('bin/*')
 package_data = [
     'models/LICENSE',
     'models/README.rst',
-    'models/beats/201[56]/*',
+    'models/beats/201[569]/*',
     'models/chords/*/*',
     'models/chroma/*/*',
-    'models/downbeats/*/*',
+    'models/downbeats/2016/*',
     'models/key/2018/*',
     'models/notes/*/*',
     'models/onsets/*/*',

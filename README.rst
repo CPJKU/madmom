@@ -245,11 +245,15 @@ will give different help messages.
 Additional resources
 ====================
 
-Mailing list
-------------
+Discussions / Q&A
+-----------------
 
-The `mailing list <https://groups.google.com/d/forum/madmom-users>`_ should be
-used to get in touch with the developers and other users.
+Github discussions (https://github.com/CPJKU/madmom/discussions) should be
+used to get in touch with the developers and other users, to ask questions
+about madmom's usage and ideas for development.
+
+The `mailing list <https://groups.google.com/d/forum/madmom-users>`_ is kept
+as an archive but should not be used for new questions/
 
 Wiki
 ----
@@ -366,12 +370,17 @@ References
     *Deep Polyphonic ADSR Piano Note Transcription*,
     Proceedings of the 44th International Conference on Acoustics, Speech and
     Signal Processing (ICASSP), 2019.
+.. [20] Sebastian Böck, Matthew Davies and Peter Knees,
+    *Multi-Task learning of tempo and beat: learning one to improve the other*,
+    Proceedings of the 20th International Society for Music Information
+    Retrieval Conference (ISMIR), 2019.
+
 
 Acknowledgements
 ================
 
 Supported by the European Commission through the `GiantSteps project
-<http://www.giantsteps-project.eu>`_ (FP7 grant agreement no. 610591) and the
+<http://giantsteps-project.upf.edu>`_ (FP7 grant agreement no. 610591) and the
 `Phenicx project <http://phenicx.upf.edu>`_ (FP7 grant agreement no. 601166)
 as well as the `Austrian Science Fund (FWF) <https://www.fwf.ac.at>`_ project
 Z159.

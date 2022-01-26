@@ -121,8 +121,13 @@ def _process_dbn(process_tuple):
 
 class DBNDownBeatTrackingProcessor(Processor):
     """
-    Downbeat tracking with RNNs and a dynamic Bayesian network (DBN)
-    approximated by a Hidden Markov Model (HMM).
+    Downbeat tracking with a dynamic Bayesian network (DBN) approximated by
+    a Hidden Markov Model (HMM).
+
+    The observations must reflect the probabilities corresponding to beats
+    and downbeats. The probability for non-beats is computed given these two
+    probabilities as p(nb) = 1 - p(b) - p(db). All three observations must be
+    a probability density function, i.e. sum(p(nb) + p(b) + p(db)) == 1.
 
     Parameters
     ----------
@@ -268,14 +273,18 @@ class DBNDownBeatTrackingProcessor(Processor):
         """
         # pylint: disable=arguments-differ
         import itertools as it
-        # use only the activations > threshold (init offset to be added later)
+        # init beats to return and offset (to be added later)
+        beats = np.empty((0, 2), dtype=float)
         first = 0
+        # use only activations > threshold
         if self.threshold:
             activations, first = threshold_activations(activations,
                                                        self.threshold)
         # return no beats if no activations given / remain after thresholding
         if not activations.any():
-            return np.empty((0, 2))
+            return beats
+        # add a small epsilon to prevent division by 0
+        activations += np.finfo(activations.dtype).eps
         # (parallel) decoding of the activations with HMM
         results = list(self.map(_process_dbn, zip(self.hmms,
                                                   it.repeat(activations))))
@@ -283,6 +292,9 @@ class DBNDownBeatTrackingProcessor(Processor):
         best = np.argmax(list(r[1] for r in results))
         # the best path through the state space
         path, _ = results[best]
+        # also return no beats if no path was found
+        if not path.any():
+            return beats
         # the state space and observation model of the best HMM
         st = self.hmms[best].transition_model.state_space
         om = self.hmms[best].observation_model

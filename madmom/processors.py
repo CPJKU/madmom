@@ -863,7 +863,7 @@ def process_online(processor, infile, outfile, **kwargs):
     kwargs['sample_rate'] = kwargs.get('sample_rate', 44100)
     kwargs['num_channels'] = kwargs.get('num_channels', 1)
     # list all available PyAudio devices and exit afterwards
-    if kwargs['list_stream_input_device']:
+    if kwargs.get('list_stream_input_device'):
         import pyaudio
         pa = pyaudio.PyAudio()
         for i in range(pa.get_device_count()):
@@ -947,6 +947,14 @@ def io_arguments(parser, output_suffix='.txt', pickle=True, online=False):
     # add general options
     parser.add_argument('-v', dest='verbose', action='count',
                         help='increase verbosity level')
+
+    # print usage if no processing mode is set
+    def print_usage(*args, **kwargs):
+        parser.print_usage()
+        exit(0)
+
+    parser.set_defaults(func=print_usage)
+
     # add subparsers
     sub_parsers = parser.add_subparsers(title='processing options')
 

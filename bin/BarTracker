@@ -79,6 +79,7 @@ def main():
         # signal processor
         signal_processor = SignalProcessor(**vars(args))
         # beats processor
+        load_beats_processor = None
         if hasattr(args, 'infile'):
             # single mode: read the beats from STDIN
             load_beats_processor = LoadBeatsProcessor(**vars(args))
