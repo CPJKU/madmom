@@ -13,9 +13,6 @@ Prerequisites
 -------------
 
 To install the ``madmom`` package, you must have either Python 2.7 or Python
-3.3 or newer and the following packages installed:
-
-To install the ``madmom`` package, you must have either Python 2.7 or Python
 3.5 or newer and the following packages installed:
 
 - `numpy <http://www.numpy.org>`_
