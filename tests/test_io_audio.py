@@ -7,9 +7,9 @@ This file contains tests for the madmom.audio.signal module.
 
 from __future__ import absolute_import, division, print_function
 
+import io
 import unittest
 from os.path import join as pj
-import io
 
 from madmom.io.audio import *
 from . import AUDIO_PATH, DATA_PATH

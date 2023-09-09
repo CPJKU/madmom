@@ -7,12 +7,11 @@ This file contains tests for the madmom.evaluation module.
 
 from __future__ import absolute_import, division, print_function
 
-import unittest
 import math
+import unittest
 from collections import OrderedDict
 
 from madmom.evaluation import *
-
 
 DETECTIONS = np.asarray([0.99, 1.45, 2.01, 2.015, 3.1, 8.1])
 ANNOTATIONS = np.asarray([1, 1.5, 2.0, 2.03, 2.05, 2.5, 3])

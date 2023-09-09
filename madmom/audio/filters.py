@@ -10,6 +10,7 @@ This module contains filter and filterbank related functionality.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+
 from ..processors import Processor
 
 FILTER_DTYPE = np.float32

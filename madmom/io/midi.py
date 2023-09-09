@@ -7,9 +7,10 @@ This module contains MIDI functionality.
 
 from __future__ import absolute_import, division, print_function
 
-import numpy as np
-import mido
 import warnings
+
+import mido
+import numpy as np
 
 DEFAULT_TEMPO = 500000  # microseconds per quarter note (i.e. 120 bpm in 4/4)
 DEFAULT_TICKS_PER_BEAT = 480  # ticks per quarter note

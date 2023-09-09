@@ -10,12 +10,13 @@ This module contains spectrogram related functionality.
 from __future__ import absolute_import, division, print_function
 
 import inspect
+
 import numpy as np
 from scipy.ndimage import maximum_filter
 
-from ..processors import Processor, SequentialProcessor, BufferProcessor
 from .filters import (Filterbank, LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX,
                       A4, NORM_FILTERS, UNIQUE_FILTERS)
+from ..processors import Processor, SequentialProcessor, BufferProcessor
 
 
 def spec(stft):

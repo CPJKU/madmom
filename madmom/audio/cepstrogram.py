@@ -12,9 +12,9 @@ from __future__ import absolute_import, division, print_function
 import numpy as np
 from scipy.fftpack import dct
 
-from ..processors import Processor
 from .filters import MelFilterbank
 from .spectrogram import Spectrogram
+from ..processors import Processor
 
 
 class Cepstrogram(np.ndarray):

@@ -23,9 +23,7 @@ and iterable. This way they can be used identically to numpy arrays.
 
 from __future__ import absolute_import, division, print_function
 
-# import the submodules
-from . import comb_filters, filters, signal, spectrogram, stft
-# import classes used often
+# import submodules and classes used often
 from .chroma import DeepChromaProcessor
 from .signal import (FramedSignal, FramedSignalProcessor, Signal,
                      SignalProcessor, )

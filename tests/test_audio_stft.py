@@ -7,14 +7,13 @@ This file contains tests for the madmom.audio.stft module.
 
 from __future__ import absolute_import, division, print_function
 
-import unittest
 import sys
+import unittest
 from os.path import join as pj
 
-from . import AUDIO_PATH
-from madmom.audio.stft import *
 from madmom.audio.spectrogram import Spectrogram
-from madmom.audio.signal import FramedSignal
+from madmom.audio.stft import *
+from . import AUDIO_PATH
 
 sample_file = pj(AUDIO_PATH, 'sample.wav')
 sig_2d = np.array([[1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0],
