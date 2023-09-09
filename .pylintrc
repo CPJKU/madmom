@@ -1,0 +1,32 @@
+[pylint]
+
+disable=
+    fixme,
+    import-error,
+    import-self,
+    invalid-name,
+    line-too-long,
+    locally-disabled,
+    logging-fstring-interpolation,
+    logging-not-lazy,
+    missing-function-docstring,
+    missing-class-docstring,
+    missing-module-docstring,
+    too-few-public-methods,
+    too-many-arguments,
+    too-many-instance-attributes,
+    too-many-locals,
+    undefined-variable,
+    ungrouped-imports,
+    unspecified-encoding,
+    unused-import,
+    unused-variable,
+    wrong-import-order,
+
+extension-pkg-whitelist=
+    cv2
+
+generated-members=
+    numpy.*,
+    scipy.*,
+    cv2.*,
