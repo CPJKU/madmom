@@ -18,6 +18,7 @@ References
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
+from scipy.ndimage import correlate1d
 
 cimport numpy as np
 cimport cython
@@ -97,7 +98,6 @@ def normalisation_factors(activations, transition_distribution):
         Normalisation factors for model.
 
     """
-    from scipy.ndimage.filters import correlate1d
     return correlate1d(activations, transition_distribution,
                        mode='constant', cval=0,
                        origin=-int(transition_distribution.shape[0] / 2))

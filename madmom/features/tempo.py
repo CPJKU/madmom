@@ -393,12 +393,12 @@ class CombFilterTempoHistogramProcessor(TempoHistogramProcessor):
 
         """
 
-        activations = np.array(activations, copy=False, subok=True, ndmin=1)
+        activations = np.array(activations, copy=False, subok=True, ndmin=1, dtype=float)
         # reset to initial state
         if reset:
             self.reset()
         # indices at which to retrieve y[n - τ]
-        idx = [-self.intervals, np.arange(len(self.intervals))]
+        idx = (-self.intervals, np.arange(len(self.intervals)))
         # iterate over all activations
         # Note: in online mode, activations are just float values, thus cast
         #       them as 1-dimensional array
