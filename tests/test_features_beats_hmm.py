@@ -8,7 +8,7 @@ This file contains tests for the madmom.features.beats_hmm module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
-from madmom.ml.hmm import *
+
 from madmom.features.beats_hmm import *
 
 

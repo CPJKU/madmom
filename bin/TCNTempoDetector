@@ -9,13 +9,11 @@ from __future__ import absolute_import, division, print_function
 
 import argparse
 
-import numpy as np
-
 from madmom.audio import SignalProcessor
 from madmom.features import ActivationsProcessor
 from madmom.features.beats import TCNBeatProcessor
 from madmom.features.tempo import TCNTempoHistogramProcessor, TempoEstimationProcessor
-from madmom.io import write_events, write_tempo
+from madmom.io import write_tempo
 from madmom.processors import IOProcessor, io_arguments
 
 

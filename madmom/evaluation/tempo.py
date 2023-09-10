@@ -10,6 +10,7 @@ This module contains tempo evaluation functionality.
 from __future__ import absolute_import, division, print_function
 
 import warnings
+
 import numpy as np
 
 from . import EvaluationMixin, MeanEvaluation, evaluation_io

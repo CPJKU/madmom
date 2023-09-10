@@ -34,7 +34,6 @@ import numpy as np
 from . import evaluation_io, EvaluationMixin
 from ..io import load_chords
 
-
 CHORD_DTYPE = [('root', int),
                ('bass', int),
                ('intervals', int, (12,))]

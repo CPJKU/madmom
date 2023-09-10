@@ -10,17 +10,16 @@ from __future__ import absolute_import, division, print_function
 import unittest
 from os.path import join as pj
 
-from . import AUDIO_PATH, ACTIVATIONS_PATH
-
-from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
 from madmom.audio.filters import LogarithmicFilterbank
-from madmom.audio.stft import ShortTimeFourierTransformProcessor
+from madmom.audio.signal import SignalProcessor, FramedSignalProcessor
 from madmom.audio.spectrogram import (Spectrogram, SpectrogramProcessor,
                                       FilteredSpectrogramProcessor,
                                       LogarithmicFilteredSpectrogram,
                                       LogarithmicSpectrogramProcessor)
+from madmom.audio.stft import ShortTimeFourierTransformProcessor
 from madmom.features import Activations
 from madmom.features.onsets import *
+from . import AUDIO_PATH, ACTIVATIONS_PATH
 
 sample_file = pj(AUDIO_PATH, 'sample.wav')
 sample_spec = Spectrogram(sample_file, circular_shift=True)

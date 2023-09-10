@@ -8,12 +8,11 @@ This file contains test functions for the madmom.utils.midi module.
 from __future__ import absolute_import, division, print_function
 
 import os
-import unittest
 import tempfile
+import unittest
 from os.path import join as pj
 
 from madmom.utils.midi import *
-
 from . import ANNOTATIONS_PATH
 
 tmp_file = tempfile.NamedTemporaryFile(delete=False).name

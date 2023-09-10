@@ -10,13 +10,13 @@ This module contains note evaluation functionality.
 from __future__ import absolute_import, division, print_function
 
 import warnings
+
 import numpy as np
 
 from . import (evaluation_io, MultiClassEvaluation, SumEvaluation,
                MeanEvaluation)
 from .onsets import onset_evaluation, OnsetEvaluation
 from ..io import load_notes
-
 
 # default note evaluation values
 WINDOW = 0.025

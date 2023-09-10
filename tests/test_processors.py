@@ -6,12 +6,13 @@ This file contains tests for the madmom.processors module.
 """
 
 from __future__ import absolute_import, division, print_function
+
 import tempfile
 import unittest
 
-from madmom.processors import *
-from madmom.models import *
 from madmom.ml.nn import NeuralNetwork
+from madmom.models import *
+from madmom.processors import *
 
 tmp_file = tempfile.NamedTemporaryFile(delete=False).name
 

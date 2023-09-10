@@ -10,13 +10,14 @@ This module contains chroma related functionality.
 from __future__ import absolute_import, division, print_function
 
 import warnings
+
 import numpy as np
 
-from madmom.audio.spectrogram import (Spectrogram, FilteredSpectrogram,
-                                      SemitoneBandpassSpectrogram)
 from madmom.audio.filters import (A4, Filterbank,
                                   PitchClassProfileFilterbank as PCP,
                                   HarmonicPitchClassProfileFilterbank as HPCP)
+from madmom.audio.spectrogram import (Spectrogram, FilteredSpectrogram,
+                                      SemitoneBandpassSpectrogram)
 from madmom.processors import SequentialProcessor, Processor
 
 

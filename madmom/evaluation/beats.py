@@ -28,8 +28,8 @@ References
 
 from __future__ import absolute_import, division, print_function
 
-from functools import wraps
 import warnings
+from functools import wraps
 
 import numpy as np
 

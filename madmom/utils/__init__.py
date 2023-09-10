@@ -10,12 +10,11 @@ Utility package.
 
 from __future__ import absolute_import, division, print_function
 
-import io
 import argparse
 import contextlib
+import io
 
 import numpy as np
-
 
 # Python 2/3 string compatibility (like six does it)
 try:

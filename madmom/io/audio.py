@@ -17,8 +17,8 @@ import tempfile
 
 import numpy as np
 
-from ..utils import string_types, file_types
 from ..audio.signal import Signal
+from ..utils import string_types, file_types
 
 
 # error classes

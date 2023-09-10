@@ -1,27 +1,63 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.0.1
+    rev: v4.4.0
     hooks:  # for a list of hooks see https://github.com/pre-commit/pre-commit-hooks
       - id: check-added-large-files
-        args: ['--maxkb=100']
+      - id: check-builtin-literals
       - id: check-case-conflict
+      - id: check-docstring-first
       - id: check-executables-have-shebangs
       - id: check-json
       - id: check-shebang-scripts-are-executable
       - id: check-merge-conflict
       - id: check-symlinks
+      - id: check-toml
       - id: check-yaml
+      - id: debug-statements
       - id: destroyed-symlinks
       - id: detect-private-key
       - id: end-of-file-fixer
       - id: file-contents-sorter
+      - id: fix-byte-order-marker
       - id: mixed-line-ending
+      - id: name-tests-test
       - id: no-commit-to-branch
       - id: pretty-format-json
       - id: requirements-txt-fixer
       - id: sort-simple-yaml
       - id: trailing-whitespace
-  - repo: https://gitlab.com/pycqa/flake8
-    rev: 3.9.2
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.12.0
+    hooks:
+      - id: isort
+        args: [ '--settings-path', '.isort.cfg', '-a', 'from __future__ import annotations' ]
+  - repo: https://github.com/asottile/pyupgrade
+    rev: v3.10.1
+    hooks:
+      - id: pyupgrade
+        args: [ '--py39-plus', '--keep-runtime-typing']
+  - repo: https://github.com/psf/black
+    rev: 23.9.0
+    hooks:
+      - id: black
+        entry: black -t py39 -l 120 -S .
+  - repo: https://github.com/PyCQA/autoflake
+    rev: v2.2.1
+    hooks:
+      - id:
+          autoflake
+  - repo: https://github.com/PyCQA/flake8
+    rev: 6.1.0  # 6.0.0 with flake8-quotes raises ValueError
     hooks:
       - id: flake8
+        additional_dependencies: ['flake8-quotes']
+  - repo: https://github.com/PyCQA/prospector
+    rev: 1.10.2
+    hooks:
+      - id: prospector
+        additional_dependencies: [ 'pylint_pydantic' ]
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.2.5
+    hooks:
+      - id: codespell
+        entry: codespell -w -i 3
