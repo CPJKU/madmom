@@ -9,8 +9,8 @@ from __future__ import absolute_import, division, print_function
 
 import sys
 import unittest
-from madmom.ml.hmm import *
 
+from madmom.ml.hmm import *
 
 PRIOR = np.array([0.6, 0.2, 0.2])
 

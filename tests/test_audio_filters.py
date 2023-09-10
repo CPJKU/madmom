@@ -7,11 +7,10 @@ This file contains tests for the madmom.audio.filters module.
 
 from __future__ import absolute_import, division, print_function
 
-import unittest
 import types
+import unittest
 
 from madmom.audio.filters import *
-
 
 # Mel frequency scale
 HZ = np.asarray([20, 258.7484, 576.6645, 1000])

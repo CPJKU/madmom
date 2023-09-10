@@ -10,14 +10,12 @@ from __future__ import absolute_import, division, print_function
 import unittest
 from os.path import join as pj
 
+from madmom.audio.filters import (MelFilterbank, BarkFilterbank)
+from madmom.audio.signal import Signal
+from madmom.audio.spectrogram import *
+from madmom.audio.stft import ShortTimeFourierTransform
 from . import AUDIO_PATH
 from .test_audio_filters import FFT_FREQS_1024, LOG_FILTERBANK_CENTER_FREQS
-
-from madmom.audio.spectrogram import *
-from madmom.audio.filters import (Filterbank, LogarithmicFilterbank,
-                                  MelFilterbank, BarkFilterbank)
-from madmom.audio.stft import ShortTimeFourierTransform
-from madmom.audio.signal import Signal
 
 sample_file = pj(AUDIO_PATH, 'sample.wav')
 sample_file_22050 = pj(AUDIO_PATH, 'sample_22050.wav')

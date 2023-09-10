@@ -7,13 +7,15 @@ This file contains tests for the madmom.audio.chroma module.
 
 from __future__ import absolute_import, division, print_function
 
-import numpy as np
 import unittest
-from . import AUDIO_PATH, ACTIVATIONS_PATH
-from madmom.audio.chroma import DeepChromaProcessor, CLPChroma
-from madmom.features import Activations
 from os.path import join as pj
+
+import numpy as np
+
+from madmom.audio.chroma import DeepChromaProcessor, CLPChroma
 from madmom.audio.signal import Signal
+from madmom.features import Activations
+from . import AUDIO_PATH, ACTIVATIONS_PATH
 
 sample_files = [pj(AUDIO_PATH, sf) for sf in ['sample.wav', 'sample2.wav']]
 sample_acts = [Activations(pj(ACTIVATIONS_PATH, af))

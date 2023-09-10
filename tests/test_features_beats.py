@@ -10,12 +10,13 @@ from __future__ import absolute_import, division, print_function
 import unittest
 from os.path import join as pj
 
-from . import AUDIO_PATH, ACTIVATIONS_PATH
+from madmom.ml.hmm import HiddenMarkovModel
+
 from madmom.audio.signal import FramedSignal
 from madmom.features import Activations
 from madmom.features.beats import *
 from madmom.features.beats_hmm import *
-from madmom.ml.hmm import HiddenMarkovModel
+from . import AUDIO_PATH, ACTIVATIONS_PATH
 
 sample_file = pj(AUDIO_PATH, "sample.wav")
 sample_lstm_act = Activations(pj(ACTIVATIONS_PATH, "sample.beats_lstm.npz"))

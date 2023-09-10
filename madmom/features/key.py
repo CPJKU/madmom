@@ -11,7 +11,6 @@ import numpy as np
 
 from ..processors import SequentialProcessor
 
-
 KEY_LABELS = ['A major', 'Bb major', 'B major', 'C major', 'Db major',
               'D major', 'Eb major', 'E major', 'F major', 'F# major',
               'G major', 'Ab major', 'A minor', 'Bb minor', 'B minor',

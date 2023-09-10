@@ -9,10 +9,10 @@ from __future__ import absolute_import, division, print_function
 
 import unittest
 
-from madmom.models import *
 from madmom.ml.nn import *
-from madmom.ml.nn.layers import *
 from madmom.ml.nn.activations import *
+from madmom.ml.nn.layers import *
+from madmom.models import *
 
 
 class TestRNNClass(unittest.TestCase):

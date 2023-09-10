@@ -10,11 +10,13 @@ This module contains spectrogram related functionality.
 from __future__ import absolute_import, division, print_function
 
 import inspect
-import numpy as np
 
-from ..processors import Processor, SequentialProcessor, BufferProcessor
+import numpy as np
+from scipy.ndimage import maximum_filter
+
 from .filters import (Filterbank, LogarithmicFilterbank, NUM_BANDS, FMIN, FMAX,
                       A4, NORM_FILTERS, UNIQUE_FILTERS)
+from ..processors import Processor, SequentialProcessor, BufferProcessor
 
 
 def spec(stft):
@@ -226,7 +228,6 @@ class Spectrogram(np.ndarray):
             Tuning frequency of the spectrogram.
 
         """
-        from scipy.ndimage.filters import maximum_filter
         # widen the spectrogram in frequency dimension
         max_spec = maximum_filter(self, size=[1, 3])
         # get the peaks of the spectrogram
@@ -973,7 +974,6 @@ class SpectrogramDifference(Spectrogram):
 
         # apply a maximum filter to diff_spec if needed
         if diff_max_bins is not None and diff_max_bins > 1:
-            from scipy.ndimage.filters import maximum_filter
             # widen the spectrogram in frequency dimension
             size = (1, int(diff_max_bins))
             diff_spec = maximum_filter(spectrogram, size=size)

@@ -10,8 +10,7 @@ This module contains onset detection related functionality.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-from scipy.ndimage import uniform_filter
-from scipy.ndimage.filters import maximum_filter, minimum_filter
+from scipy.ndimage import maximum_filter, minimum_filter, uniform_filter
 
 from ..audio.signal import smooth as smooth_signal
 from ..processors import (BufferProcessor, OnlineProcessor, ParallelProcessor,

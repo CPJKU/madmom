@@ -16,7 +16,6 @@ integer values because of performance reasons.
 from __future__ import absolute_import, division, print_function
 
 import numpy as np
-
 from madmom.ml.hmm import ObservationModel, TransitionModel
 
 

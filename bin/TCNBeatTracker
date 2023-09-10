@@ -13,7 +13,6 @@ from madmom.audio import SignalProcessor
 from madmom.features import ActivationsProcessor
 from madmom.features.beats import DBNBeatTrackingProcessor, TCNBeatProcessor
 from madmom.io import write_beats
-from madmom.ml.nn import NeuralNetworkEnsemble
 from madmom.processors import IOProcessor, io_arguments
 
 

@@ -8,6 +8,7 @@ This file contains test for the madmom.ml.crf module.
 from __future__ import absolute_import, division, print_function
 
 import unittest
+
 from madmom.ml.crf import *
 
 eta = 0.000000000000001  # numerical stability
