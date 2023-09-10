@@ -227,12 +227,7 @@ class DBNDownBeatTrackingProcessor(Processor):
                              'and `transition_lambda` must all have the same '
                              'length.')
         # get num_threads from kwargs
-        num_threads = min(len(beats_per_bar), kwargs.get('num_threads', 1))
-        # init a pool of workers (if needed)
-        self.map = map
-        if num_threads != 1:
-            import multiprocessing as mp
-            self.map = mp.Pool(num_threads).map
+        self.num_threads = min(len(beats_per_bar), kwargs.get('num_threads', 1))
         # convert timing information to construct a beat state space
         min_interval = 60. * fps / max_bpm
         max_interval = 60. * fps / min_bpm
@@ -277,8 +272,16 @@ class DBNDownBeatTrackingProcessor(Processor):
         if not activations.any():
             return np.empty((0, 2))
         # (parallel) decoding of the activations with HMM
-        results = list(self.map(_process_dbn, zip(self.hmms,
-                                                  it.repeat(activations))))
+        if self.num_threads == 1:
+            results = list(map(_process_dbn, zip(self.hmms,
+                                                      it.repeat(activations))))
+        else:
+            # use a pool of workers (when needed)
+            import multiprocessing as mp
+            with mp.Pool(num_threads) as p:
+                results = list(p.map(_process_dbn, zip(self.hmms,
+                                                     it.repeat(activations))))
+        
         # choose the best HMM (highest log probability)
         best = np.argmax(list(r[1] for r in results))
         # the best path through the state space
