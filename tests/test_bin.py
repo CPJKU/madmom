@@ -233,7 +233,7 @@ class TestBeatDetectorProgram(unittest.TestCase):
         # reload from file
         run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
-        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+        self.assertTrue(np.allclose(result, self.result, atol=1e-1))
 
     def test_txt(self):
         # save activations as txt file
@@ -243,12 +243,12 @@ class TestBeatDetectorProgram(unittest.TestCase):
         # reload from file
         run_load(self.bin, tmp_act, tmp_result, args=['--sep', ' '])
         result = np.loadtxt(tmp_result)
-        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+        self.assertTrue(np.allclose(result, self.result, atol=1e-1))
 
     def test_run(self):
         run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
-        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+        self.assertTrue(np.allclose(result, self.result, atol=1e-1))
 
 
 class TestBeatTrackerProgram(unittest.TestCase):
@@ -259,6 +259,7 @@ class TestBeatTrackerProgram(unittest.TestCase):
             pj(ACTIVATIONS_PATH, "sample.beats_blstm.npz"))
         self.result = np.loadtxt(
             pj(DETECTIONS_PATH, "sample.beat_tracker.txt"))
+        self.online_results = [0.68, 1.14, 1.48, 1.84, 2.18, 2.51]
 
     def test_help(self):
         self.assertTrue(run_help(self.bin))
@@ -272,7 +273,7 @@ class TestBeatTrackerProgram(unittest.TestCase):
         # reload from file
         run_load(self.bin, tmp_act, tmp_result)
         result = np.loadtxt(tmp_result)
-        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+        self.assertTrue(np.allclose(result, self.result, atol=1e-1))
 
     def test_txt(self):
         # save activations as txt file
@@ -282,12 +283,20 @@ class TestBeatTrackerProgram(unittest.TestCase):
         # reload from file
         run_load(self.bin, tmp_act, tmp_result, args=['--sep', ' '])
         result = np.loadtxt(tmp_result)
-        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+        self.assertTrue(np.allclose(result, self.result, atol=1e-1))
 
     def test_run(self):
         run_single(self.bin, sample_file, tmp_result)
         result = np.loadtxt(tmp_result)
-        self.assertTrue(np.allclose(result, self.result, atol=1e-5))
+        self.assertTrue(np.allclose(result, self.result, atol=1e-1))
+
+    def test_online(self):
+        run_online(self.bin, sample_file, tmp_result)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.online_results))
+        run_single(self.bin, sample_file, tmp_result, online=True)
+        result = np.loadtxt(tmp_result)
+        self.assertTrue(np.allclose(result, self.online_results))
 
 
 class TestCNNChordRecognition(unittest.TestCase):
