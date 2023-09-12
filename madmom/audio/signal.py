@@ -329,6 +329,38 @@ def trim(signal, where='fb'):
     return signal[first:last]
 
 
+def add_noise(signal, snr=10.):
+    """
+    Add Additive White Gaussian Noise (AWGN) to a signal.
+
+    Parameters
+    ----------
+    signal : numpy array
+        Original signal.
+    snr : float, optional
+        The Signal-to-noise ratio determines how strong the noise should be
+        relative to the signal. A lower value results in a stronger noise.
+
+    Returns
+    -------
+    numpy array
+        Signal with added noise.
+
+    """
+    # make sure SNR is in allowed range
+    if snr <= 0:
+        raise ValueError("Invalid value for SNR, must be greater than zero.")
+    # generate gaussian random noise
+    noise = np.random.normal(0, 1, signal.shape)
+    # compute power for signal and noise
+    power_signal = root_mean_square(signal)
+    power_noise = root_mean_square(noise)
+    # scale noise to match SNR
+    noise *= (power_signal / power_noise) / snr
+    # return signal with added noise
+    return signal + noise.astype(signal.dtype)
+
+
 def energy(signal):
     """
     Compute the energy of a (framed) signal.
