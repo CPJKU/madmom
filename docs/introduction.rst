@@ -4,7 +4,7 @@ Introduction
 Madmom is an audio signal processing library written in Python with a strong
 focus on music information retrieval (MIR) tasks. The project is on `GitHub`_.
 
-It's main features / design goals are:
+Its main features / design goals are:
 
 * ease of use,
 * rapid prototyping of signal processing workflows,
