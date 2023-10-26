@@ -95,8 +95,12 @@ Package Index) <https://pypi.python.org/pypi>`_::
 
     pip install madmom
 
-This includes the latest code and trained models and will install all
-dependencies automatically.
+This includes the latest stable release and will install all dependencies
+automatically.
+
+Alternatively, if you prefer the latest code that might be unstable::
+
+    pip install git+https://github.com/CPJKU/madmom
 
 You might need higher privileges (use su or sudo) to install the package, model
 files and scripts globally. Alternatively you can install the package locally
