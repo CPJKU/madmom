@@ -44,17 +44,24 @@ sys.dont_write_bytecode = True
 
 
 def run_program(program):
-    # import module, capture stdout
+    # import module, capture stdout and stderr
     test = imp.load_source('test', program[0])
     sys.argv = program
-    backup = sys.stdout
+    stdout = sys.stdout
+    stderr = sys.stderr
+    # redirect stdout and stderr
     sys.stdout = StringIO()
+    sys.stderr = StringIO()
     # run the program
     data = test.main()
-    # close stdout, restore environment
-    sys.stdout.getvalue()
+    # display stdout and stderr
+    print(sys.stdout.getvalue(), file=stdout)
+    print(sys.stderr.getvalue(), file=stderr)
+    # close and restore environment
     sys.stdout.close()
-    sys.stdout = backup
+    sys.stderr.close()
+    sys.stdout = stdout
+    sys.stderr = stderr
     return data
 
 
