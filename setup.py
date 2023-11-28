@@ -43,7 +43,7 @@ scripts = glob.glob('bin/*')
 package_data = [
     'models/LICENSE',
     'models/README.rst',
-    'models/beats/201[56]/*',
+    'models/beats/*/*',
     'models/chords/*/*',
     'models/chroma/*/*',
     'models/downbeats/*/*',
