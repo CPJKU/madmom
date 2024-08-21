@@ -478,8 +478,8 @@ class MultiPatternTransitionModel(TransitionModel):
             new_probabilities = []
             for p in range(num_patterns):
                 # indices of states/prev_states/probabilities
-                idx = np.logical_and(np.in1d(prev_states, last_states[p]),
-                                     np.in1d(states, first_states[p]))
+                idx = np.logical_and(np.isin(prev_states, last_states[p]),
+                                     np.isin(states, first_states[p]))
                 # transition probability
                 prob = probabilities[idx]
                 # update transitions to same pattern with new probability
@@ -487,8 +487,8 @@ class MultiPatternTransitionModel(TransitionModel):
                 # distribute that part among all other patterns
                 for p_ in np.setdiff1d(range(num_patterns), p):
                     idx_ = np.logical_and(
-                        np.in1d(prev_states, last_states[p_]),
-                        np.in1d(states, first_states[p_]))
+                        np.isin(prev_states, last_states[p_]),
+                        np.isin(states, first_states[p_]))
                     # make sure idx and idx_ have same length
                     if len(np.nonzero(idx)[0]) != len(np.nonzero(idx_)[0]):
                         raise ValueError('Cannot add transition between '

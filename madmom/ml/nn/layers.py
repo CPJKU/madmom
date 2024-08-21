@@ -1220,7 +1220,7 @@ class ReshapeLayer(Layer):
             Reshaped data.
 
         """
-        return np.reshape(data, self.newshape, self.order)
+        return np.reshape(data, self.newshape, order=self.order)
 
 
 class AverageLayer(Layer):
