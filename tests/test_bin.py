@@ -7,12 +7,13 @@ This file contains tests for the programs in the /bin directory.
 
 from __future__ import absolute_import, division, print_function
 
-import imp
 import os
 import shutil
 import sys
 import tempfile
+import types
 import unittest
+from importlib.machinery import SourceFileLoader
 from os.path import join as pj
 
 try:
@@ -45,7 +46,9 @@ sys.dont_write_bytecode = True
 
 def run_program(program):
     # import module, capture stdout
-    test = imp.load_source('test', program[0])
+    loader = SourceFileLoader('test', program[0])
+    test = types.ModuleType(loader.name)
+    loader.exec_module(test)
     sys.argv = program
     backup = sys.stdout
     sys.stdout = StringIO()
@@ -105,7 +108,9 @@ def run_load(program, infile, outfile, online=False, args=None):
 
 
 def run_help(program):
-    test = imp.load_source('test', program)
+    loader = SourceFileLoader('test', program)
+    test = types.ModuleType(loader.name)
+    loader.exec_module(test)
     sys.argv = [program, '-h']
     try:
         test.main()
