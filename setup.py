@@ -56,10 +56,10 @@ package_data = [
 # some PyPI metadata
 classifiers = [
     'Development Status :: 3 - Beta',
-    'Programming Language :: Python :: 3.7',
-    'Programming Language :: Python :: 3.8',
     'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
     'Environment :: Console',
     'License :: OSI Approved :: BSD License',
     'License :: Free for non-commercial use',
