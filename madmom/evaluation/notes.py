@@ -133,9 +133,9 @@ def note_onset_evaluation(detections, annotations, window=WINDOW):
         tp_, fp_, _, fn_, err_ = onset_evaluation(det[:, 0], ann[:, 0], window)
         # convert returned arrays to lists and append the detections and
         # annotations to the correct lists
-        tp = np.vstack((tp, det[np.in1d(det[:, 0], tp_)]))
-        fp = np.vstack((fp, det[np.in1d(det[:, 0], fp_)]))
-        fn = np.vstack((fn, ann[np.in1d(ann[:, 0], fn_)]))
+        tp = np.vstack((tp, det[np.isin(det[:, 0], tp_)]))
+        fp = np.vstack((fp, det[np.isin(det[:, 0], fp_)]))
+        fn = np.vstack((fn, ann[np.isin(ann[:, 0], fn_)]))
         # append the note number to the errors
         err_ = np.vstack((np.array(err_),
                           np.repeat(np.asarray([note]), len(err_)))).T

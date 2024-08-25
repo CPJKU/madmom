@@ -392,8 +392,8 @@ class CombFilterTempoHistogramProcessor(TempoHistogramProcessor):
             Corresponding delays [frames].
 
         """
-
-        activations = np.array(activations, copy=False, subok=True, ndmin=1, dtype=float)
+        if not isinstance(activations, np.ndarray):
+            activations = np.array(activations, ndmin=1, dtype=float)
         # reset to initial state
         if reset:
             self.reset()
@@ -402,7 +402,7 @@ class CombFilterTempoHistogramProcessor(TempoHistogramProcessor):
         # iterate over all activations
         # Note: in online mode, activations are just float values, thus cast
         #       them as 1-dimensional array
-        for act in np.array(activations, copy=False, subok=True, ndmin=1):
+        for act in activations:
             # online feed backward comb filter (y[n] = x[n] + α * y[n - τ])
             y_n = act + self.alpha * self._comb_buffer[idx]
             # shift output buffer with new value
