@@ -17,13 +17,13 @@ from __future__ import absolute_import, division, print_function
 
 import doctest
 
-import pkg_resources
+from importlib.metadata import distribution
 
 # import all packages
 from . import audio, evaluation, features, io, ml, models, processors, utils
 
 # define a version variable
-__version__ = pkg_resources.get_distribution("madmom").version
+__version__ = distribution("madmom")  .version
 
 # Create a doctest output checker that optionally ignores the unicode string
 # literal.
@@ -98,4 +98,4 @@ class _OutputChecker(_DoctestOutputChecker):
 doctest.OutputChecker = _OutputChecker
 
 # keep namespace clean
-del pkg_resources, doctest
+del doctest

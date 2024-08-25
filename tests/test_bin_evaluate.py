@@ -7,10 +7,11 @@ This file contains tests for the /bin/evaluate script.
 
 from __future__ import absolute_import, division, print_function
 
-import imp
 import os
 import sys
+import types
 import unittest
+from importlib.machinery import SourceFileLoader
 
 try:
     from cStringIO import StringIO
@@ -30,7 +31,9 @@ sys.dont_write_bytecode = True
 
 def run_script(task, det_suffix=None, args=None):
     # import module, capture stdout
-    test = imp.load_source('test', eval_script)
+    loader = SourceFileLoader('test', eval_script)
+    test = types.ModuleType(loader.name)
+    loader.exec_module(test)
     sys.argv = [eval_script, task, '--csv', DETECTIONS_PATH, ANNOTATIONS_PATH]
     if det_suffix:
         sys.argv.extend(['-d', det_suffix])

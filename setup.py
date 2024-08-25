@@ -56,10 +56,10 @@ package_data = [
 # some PyPI metadata
 classifiers = [
     'Development Status :: 3 - Beta',
-    'Programming Language :: Python :: 3.7',
-    'Programming Language :: Python :: 3.8',
     'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
     'Environment :: Console',
     'License :: OSI Approved :: BSD License',
     'License :: Free for non-commercial use',
@@ -70,8 +70,7 @@ classifiers = [
 # requirements
 requirements = [
     'numpy>=1.13.4',
-    'scipy>=0.16',
-    'cython>=0.25',
+    'scipy>=1.13',
     'mido>=1.2.6',
 ]
 

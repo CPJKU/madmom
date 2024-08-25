@@ -797,7 +797,7 @@ class BufferProcessor(Processor):
         ndmin = len(self.buffer_size)
         # cast the data to have that many dimensions
         if data.ndim < ndmin:
-            data = np.array(data, copy=False, subok=True, ndmin=ndmin)
+            data = np.array(data, ndmin=ndmin)
         # length of the data
         data_length = len(data)
         # if length of data exceeds buffer length simply replace buffer data

@@ -38,7 +38,8 @@ def sort_tempo(tempo):
         Tempi sorted according to their strength.
 
     """
-    tempo = np.array(tempo, copy=False, ndmin=1)
+    if not isinstance(tempo, np.ndarray):
+        tempo = np.array(tempo, ndmin=1)
     if tempo.ndim != 2:
         raise ValueError('`tempo` has no strength information, cannot sort '
                          'them.')
