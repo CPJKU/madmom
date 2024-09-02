@@ -59,14 +59,15 @@ def main():
     # version
     p.add_argument('--version', action='version', version='BeatTracker.2016')
     # input/output arguments
-    io_arguments(p, output_suffix='.beats.txt')
+    io_arguments(p, output_suffix='.beats.txt', online=True)
     ActivationsProcessor.add_arguments(p)
     # signal processing arguments
     SignalProcessor.add_arguments(p, norm=False, gain=0)
     # beat tracking arguments
-    TempoEstimationProcessor.add_arguments(p, method='comb', min_bpm=40,
-                                           max_bpm=240, act_smooth=0.09,
-                                           hist_smooth=7, alpha=0.79)
+    TempoEstimationProcessor.add_arguments(p, method='comb', min_bpm=40.,
+                                           max_bpm=250., act_smooth=0.14,
+                                           hist_smooth=9, hist_buffer=10.,
+                                           alpha=0.79)
     BeatTrackingProcessor.add_arguments(p, look_ahead=10)
 
     # parse arguments

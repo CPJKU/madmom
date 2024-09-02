@@ -16,7 +16,7 @@ import numpy as np
 from ..audio.signal import signal_frame, smooth as smooth_signal
 from ..ml.nn import average_predictions
 from ..processors import (OnlineProcessor, ParallelProcessor, Processor,
-                          SequentialProcessor)
+                          SequentialProcessor, BufferProcessor)
 
 
 # classes for tracking beats with neural networks
@@ -381,8 +381,53 @@ def detect_beats(activations, interval, look_aside=0.2):
     return np.array(positions)
 
 
+def detect_beats_with_ccf(activations, interval, look_aside=0.2):
+    """
+    Detects the beats in the given activation function using a
+    Cross-Correlated Pulse Train signal.
+
+    Parameters
+    ----------
+    activations : numpy array
+       Beat activations.
+    interval : int
+       Look for the next beat each `interval` frames.
+    look_aside : float
+        Look this fraction of the `interval` to each side to detect the beats.
+        Determines the width of each pulse.
+
+    Returns
+    -------
+    numpy array
+       Beat positions [frames].
+
+    """
+    # always look at least 1 frame to each side
+    pulse_width = max(1, int(interval * look_aside)) * 2
+    # build pulse train with length of activations
+    sig = (np.arange(len(activations)) % interval < pulse_width)
+    # compute possible taus
+    taus = range(interval) + interval
+    # cross correlate pulse train with activations
+    bins = []
+    for tau in taus:
+        bins.append(np.sum(np.abs(activations[tau:] * sig[0:-tau])))
+    # select best fitting offset for the pulse train
+    offset = np.array(taus)[np.array(bins).argmax(axis=0)]
+    # correct starting position
+    offset -= interval
+    # predict beats over all activations by selecting the highest
+    # activation within each pulse
+    positions = []
+    for beat in range(offset, len(activations), interval):
+        act_max = activations[beat:beat + pulse_width].argmax(axis=0)
+        positions.append(beat + act_max)
+    # return beat positions
+    return np.array(positions)
+
+
 # classes for detecting/tracking of beat inside a beat activation function
-class BeatTrackingProcessor(Processor):
+class BeatTrackingProcessor(OnlineProcessor):
     """
     Track the beats according to previously determined (local) tempo by
     iteratively aligning them around the estimated position [1]_.
@@ -395,7 +440,11 @@ class BeatTrackingProcessor(Processor):
         next beat.
     look_ahead : float, optional
         Look `look_ahead` seconds in both directions to determine the local
-        tempo and align the beats accordingly.
+        tempo and align the beats accordingly. For online only look into the
+        past.
+    threshold : float, optional
+        Only accept activations as beat which exceed that threshold.
+        Currently only available in online mode.
     tempo_estimator : :class:`TempoEstimationProcessor`, optional
         Use this processor to estimate the (local) tempo. If 'None' a default
         tempo estimator will be created and used.
@@ -449,22 +498,42 @@ class BeatTrackingProcessor(Processor):
     """
     LOOK_ASIDE = 0.2
     LOOK_AHEAD = 10.
+    THRESHOLD = 0.1
 
-    def __init__(self, look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD, fps=None,
-                 tempo_estimator=None, **kwargs):
+    def __init__(self, look_aside=LOOK_ASIDE, look_ahead=LOOK_AHEAD,
+                 threshold=THRESHOLD, tempo_estimator=None, fps=None,
+                 online=False, **kwargs):
+        # pylint: disable=unused-argument
+        super(BeatTrackingProcessor, self).__init__(online=online)
         # save variables
         self.look_aside = look_aside
         self.look_ahead = look_ahead
+        self.threshold = threshold
         self.fps = fps
         # tempo estimator
         if tempo_estimator is None:
             # import the TempoEstimation here otherwise we have a loop
             from .tempo import TempoEstimationProcessor
             # create default tempo estimator
-            tempo_estimator = TempoEstimationProcessor(fps=fps, **kwargs)
+            tempo_estimator = TempoEstimationProcessor(fps=fps, online=online,
+                                                       **kwargs)
         self.tempo_estimator = tempo_estimator
+        if self.online:
+            self.visualize = kwargs.get('verbose', False)
+            self.buffer = BufferProcessor(int(look_ahead * self.fps))
+            self.counter = 0
+            self.beat_counter = 0
+            self.last_beat = 0
 
-    def process(self, activations, **kwargs):
+    def reset(self):
+        """Reset the BeatTrackingProcessor."""
+        self.tempo_estimator.reset()
+        self.buffer.reset()
+        self.counter = 0
+        self.beat_counter = 0
+        self.last_beat = 0
+
+    def process_offline(self, activations, **kwargs):
         """
         Detect the beats in the given activation function.
 
@@ -524,9 +593,76 @@ class BeatTrackingProcessor(Processor):
         # remove beats with negative times and return them
         return detections[np.searchsorted(detections, 0):]
 
+    def process_online(self, activations, reset=True, **kwargs):
+        """
+        Detect the beats in the given activation function for online mode.
+
+        Parameters
+        ----------
+        activations : numpy array
+            Beat activation function.
+        reset : bool, optional
+            Reset the BeatTrackingProcessor to its initial state before
+            processing.
+
+        Returns
+        -------
+        beats : numpy array
+            Detected beat positions [seconds].
+
+        """
+        # reset to initial state
+        if reset:
+            self.reset()
+        beats_ = []
+        for activation in activations:
+            # shift buffer and put new activation at end of buffer
+            buffer = self.buffer(activation)
+            # update online tempo hypothesis with newest activation
+            histogram = self.tempo_estimator.interval_histogram(
+                np.array([activation]), reset=reset)
+            # get the dominant interval
+            interval = self.tempo_estimator.dominant_interval(histogram)
+            # compute the current and the next possible beat time
+            cur_beat = self.counter / float(self.fps)
+            next_beat = self.last_beat + 60. / self.tempo_estimator.max_bpm
+            # only detect beats again after at least min_interval frames
+            detections = []
+            if cur_beat >= next_beat:
+                detections = detect_beats(buffer, interval, self.look_aside)
+            # if a detection falls within the last few frames it may be a beat
+            # this is done because for every frame the tempo or the detections
+            # may change and therefore the last beat can easily be missed.
+            look_back = len(buffer) - (interval * self.look_aside)
+            # a beat also has to exceed a certain threshold
+            if len(detections) and detections[-1] >= look_back and \
+               buffer[detections[-1]] > self.threshold:
+                # append to beats
+                beats_.append(cur_beat)
+                # update last beat
+                self.last_beat = cur_beat
+            # visualize beats
+            if self.visualize:
+                display = ['']
+                if len(beats_) > 0 and beats_[-1] == cur_beat:
+                    self.beat_counter = 10
+                if self.beat_counter > 0:
+                    display.append('| X ')
+                else:
+                    display.append('|   ')
+                self.beat_counter -= 1
+                # display tempo
+                display.append('| %5.1f | ' % float(self.fps * 60 / interval))
+                sys.stderr.write('\r%s' % ''.join(display))
+                sys.stderr.flush()
+            # increase counter
+            self.counter += 1
+        # return beat(s)
+        return np.array(beats_)
+
     @staticmethod
     def add_arguments(parser, look_aside=LOOK_ASIDE,
-                      look_ahead=LOOK_AHEAD):
+                      look_ahead=LOOK_AHEAD, threshold=THRESHOLD):
         """
         Add beat tracking related arguments to an existing parser.
 
@@ -540,7 +676,11 @@ class BeatTrackingProcessor(Processor):
             of the next beat.
         look_ahead : float, optional
             Look `look_ahead` seconds in both directions to determine the local
-            tempo and align the beats accordingly.
+            tempo and align the beats accordingly. For online only look into
+            the past.
+        threshold : float, optional
+            Only accept activations as beat which exceed that threshold.
+            Currently only available in online mode.
 
         Returns
         -------
@@ -568,6 +708,12 @@ class BeatTrackingProcessor(Processor):
                            help='look this many seconds in both directions '
                                 'to determine the local tempo and align the '
                                 'beats accordingly [default=%(default).2f]')
+        if threshold is not None:
+            g.add_argument('--threshold', action='store', type=float,
+                           default=threshold,
+                           help='only accept activations as beat which exceed '
+                                'that threshold (currently only for online) '
+                                '[default=%(default).2f]')
         # return the argument group so it can be modified if needed
         return g
 
