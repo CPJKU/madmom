@@ -15,6 +15,7 @@ import numpy as np
 DEFAULT_TEMPO = 500000  # microseconds per quarter note (i.e. 120 bpm in 4/4)
 DEFAULT_TICKS_PER_BEAT = 480  # ticks per quarter note
 DEFAULT_TIME_SIGNATURE = (4, 4)
+DEFAULT_KEY_SIGNATURE = 'C'
 
 
 # TODO: remove these unit conversion functions after upstream PR is merged
@@ -323,6 +324,34 @@ class MIDIFile(mido.MidiFile):
                                   DEFAULT_TIME_SIGNATURE[1]))
         # return time signatures
         return np.asarray(signatures, dtype=float)
+
+    @property
+    def key_signatures(self):
+        """
+        Key signatures of the MIDI file.
+
+        Returns
+        -------
+        key_signatures : numpy array
+            Structured array with key signatures (time, key).
+
+        Notes
+        -----
+        The time will be given in the unit set by `unit`.
+
+        """
+        # list for all key signatures
+        signatures = []
+        # process all events
+        for msg in self:
+            if msg.type == 'key_signature':
+                signatures.append((msg.time, msg.key))
+        # # make sure a signature is set (and occurs at time 0)
+        if not signatures or signatures[0][0] > 0:
+            signatures.insert(0, (0, DEFAULT_KEY_SIGNATURE))
+
+        # return key signatures
+        return np.array(signatures, dtype=[('time', '<f4'), ('key', 'U3')])
 
     @property
     def notes(self):
