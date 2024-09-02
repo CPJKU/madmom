@@ -553,6 +553,66 @@ class TestTrimFunction(unittest.TestCase):
         self.assertTrue(np.allclose(result, [5, 4, 3, 2, 1]))
 
 
+class TestAddNoiseFunction(unittest.TestCase):
+
+    def test_types(self):
+        # mono signals
+        result = add_noise(sig_1d)
+        self.assertTrue(type(result) == type(sig_1d))
+        self.assertTrue(result.ndim == sig_1d.ndim)
+        self.assertTrue(result.dtype == sig_1d.dtype)
+        signal = Signal(sample_file)
+        result = add_noise(signal)
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertTrue(result.ndim == signal.ndim)
+        self.assertTrue(result.dtype == np.int16)
+        # multi-channel signals
+        result = trim(sig_2d)
+        self.assertTrue(type(result) == type(sig_2d))
+        self.assertTrue(len(result) == len(sig_2d))
+        self.assertTrue(result.ndim == sig_2d.ndim)
+        self.assertTrue(result.dtype == sig_2d.dtype)
+        signal = Signal(stereo_sample_file)
+        result = trim(signal)
+        self.assertIsInstance(result, Signal)
+        self.assertIsInstance(result, np.ndarray)
+        self.assertTrue(result.ndim == signal.ndim)
+        self.assertTrue(result.dtype == np.int16)
+
+    def test_errors(self):
+        with self.assertRaises(ValueError):
+            add_noise(sig_1d, 0)
+        with self.assertRaises(ValueError):
+            add_noise(sig_1d, -1)
+
+    def test_values(self):
+        # fixed random seed
+        np.random.seed(0)
+        # mono signals
+        result = add_noise(sig_1d, snr=10.)
+        self.assertTrue(np.allclose(result, sig_1d, atol=0.11))
+        result = add_noise(sig_1d, snr=20.)
+        self.assertTrue(np.allclose(result, sig_1d, atol=0.06))
+        # same with int dtype
+        result = add_noise(sig_1d.astype(np.int), 10.)
+        self.assertTrue(np.allclose(result, sig_1d))
+        result = add_noise(sig_1d.astype(np.int), 0.5)
+        self.assertTrue(np.allclose(result, [0, 1, 2, 0, 0, 1, -2, 0, 1]))
+        # multi-channel signals
+        result = add_noise(sig_2d, snr=10.)
+        self.assertTrue(np.allclose(result, sig_2d, atol=0.13))
+        result = add_noise(sig_2d, snr=20.)
+        self.assertTrue(np.allclose(result, sig_2d, atol=0.08))
+        # same with int dtype
+        result = add_noise(sig_2d.astype(np.int), 10.)
+        self.assertTrue(np.allclose(result, sig_2d))
+        result = add_noise(sig_2d.astype(np.int), 0.5)
+        self.assertTrue(np.allclose(result, [[0, 2], [0, 1], [1, 1],
+                                             [0, 2], [0, 1], [3, -1],
+                                             [-1, 2], [-1, 2], [1, 1]]))
+
+
 class TestEnergyFunction(unittest.TestCase):
 
     def test_types(self):
