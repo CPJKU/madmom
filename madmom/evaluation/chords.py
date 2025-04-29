@@ -34,16 +34,19 @@ import numpy as np
 from . import evaluation_io, EvaluationMixin
 from ..io import load_chords
 
+
 CHORD_DTYPE = [('root', int),
                ('bass', int),
-               ('intervals', int, (12,))]
+               ('intervals', object)]
+
 
 CHORD_ANN_DTYPE = [('start', float),
                    ('end', float),
                    ('chord', CHORD_DTYPE)]
 
-NO_CHORD = (-1, -1, np.zeros(12, dtype=int))
-UNKNOWN_CHORD = (-1, -1, np.ones(12, dtype=int) * -1)
+
+NO_CHORD = (-1, -1, np.zeros(12, dtype=np.int32))
+UNKNOWN_CHORD = (-1, -1, np.ones(12, dtype=np.int32) * -1)
 
 
 def encode(chord_labels):
@@ -98,7 +101,7 @@ def chords(labels):
 
 def chord(label):
     """
-    Transform a chord label into the internal numeric representation of
+    Transform a chord label into the internal numeric represenation of
     (root, bass, intervals array) as defined by `CHORD_DTYPE`.
 
     Parameters
@@ -179,6 +182,8 @@ def modify(base_pitch, modifier):
     return base_pitch
 
 
+import numpy as np
+
 def pitch(pitch_str):
     """
     Convert a string representation of a pitch class (consisting of root
@@ -243,7 +248,7 @@ def interval_list(intervals_str, given_pitch_classes=None):
 
     """
     if given_pitch_classes is None:
-        given_pitch_classes = np.zeros(12, dtype=int)
+        given_pitch_classes = np.zeros(12, dtype=np.int32)
     for int_def in intervals_str[1:-1].split(','):
         int_def = int_def.strip()
         if int_def[0] == '*':
@@ -304,7 +309,7 @@ def chord_intervals(quality_str):
     if list_idx != 0:
         ivs = _shorthands[quality_str[:list_idx]].copy()
     else:
-        ivs = np.zeros(12, dtype=int)
+        ivs = np.zeros(12, dtype=np.int32)
 
     return interval_list(quality_str[list_idx:], ivs)
 
@@ -343,6 +348,7 @@ def merge_chords(chords):
     crds['end'] = merged_ends
     crds['chord'] = merged_chords
     return crds
+
 
 
 def evaluation_pairs(det_chords, ann_chords):
@@ -590,7 +596,6 @@ def reduce_to_tetrads(chords, keep_bass=False):
 
     return reduced_chords
 
-
 def select_majmin(chords):
     """
     Compute a mask that selects all major, minor, and
@@ -641,7 +646,7 @@ def adjust(det_chords, ann_chords):
 
     Discard detected chords that start after the annotation ended,
     and shorten the last detection to fit the last annotation;
-    discared detected chords that end before the annotation begins,
+    discarded detected chords that end before the annotation begins,
     and shorten the first detection to match the first annotation.
 
     Parameters

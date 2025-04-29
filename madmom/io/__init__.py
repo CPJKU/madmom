@@ -6,8 +6,8 @@ Input/output package.
 
 from __future__ import absolute_import, division, print_function
 
-import contextlib
 import io as _io
+import contextlib
 
 import numpy as np
 
@@ -144,11 +144,15 @@ def load_beats(filename, downbeats=False):
         Beats.
 
     """
-    values = np.loadtxt(filename, ndmin=2)
-    if downbeats:
-        # rows with a "1" in the 2nd column are downbeats
-        values = values[values[:, 1] == 1]
-    return values[:, 0]
+    values = np.loadtxt(filename, ndmin=1)
+    if values.ndim > 1:
+        if downbeats:
+            # rows with a "1" in the 2nd column are downbeats
+            return values[values[:, 1] == 1][:, 0]
+        else:
+            # 1st column is the beat time, the rest is ignored
+            return values[:, 0]
+    return values
 
 
 def write_beats(beats, filename, fmt=None, delimiter='\t', header=None):
@@ -279,7 +283,7 @@ def write_notes(notes, filename, fmt=None, delimiter='\t', header=None):
         fmt = ['%.3f', '%d', '%.3f', '%d']
     if not notes.ndim == 2:
         raise ValueError('unknown format for `notes`')
-    # truncate format to the number of columns given
+    # truncate format to the number of colums given
     fmt = delimiter.join(fmt[:notes.shape[1]])
     # write the notes
     write_events(notes, filename, fmt=fmt, delimiter=delimiter, header=header)
