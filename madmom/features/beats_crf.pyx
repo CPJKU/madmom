@@ -23,7 +23,7 @@ from scipy.ndimage import correlate1d
 cimport numpy as np
 cimport cython
 
-from numpy.math cimport INFINITY
+from libc.math cimport INFINITY
 
 
 def initial_distribution(num_states, interval):
