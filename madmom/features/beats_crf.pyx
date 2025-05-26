@@ -23,8 +23,6 @@ from scipy.ndimage import correlate1d
 cimport numpy as np
 cimport cython
 
-from numpy.math cimport INFINITY
-
 
 def initial_distribution(num_states, interval):
     """
@@ -197,7 +195,7 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
     # iterate over all beats; the 1st beat is given by prior
     for k in range(num_x - 1):
         # reset all current viterbi variables
-        v_c[:] = -INFINITY
+        v_c[:] = -np.inf
 
         # find the best transition for each state i
         for i in range(num_st):
@@ -223,7 +221,7 @@ def viterbi(float [::1] pi, float[::1] transition, float[::1] norm_factor,
         v_p, v_c = v_c, v_p
 
     # add the final best state to the path
-    path_prob = -INFINITY
+    path_prob = -np.inf
     for i in range(num_st):
         # subtract the norm factor because they shouldn't have been added
         # for the last random variable
