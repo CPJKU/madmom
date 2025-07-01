@@ -1150,7 +1150,7 @@ class OnsetPeakPickingProcessor(OnlineProcessor):
         # convert to onset timings
         onsets = (self.counter + peaks) / float(self.fps)
         # increase counter
-        self.counter += len(activations)
+        self.counter += activations.size
         # shift if necessary
         if self.delay:
             raise ValueError('delay not supported yet in online mode')
