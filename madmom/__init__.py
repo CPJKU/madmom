@@ -23,7 +23,7 @@ from importlib.metadata import distribution
 from . import audio, evaluation, features, io, ml, models, processors, utils
 
 # define a version variable
-__version__ = distribution("madmom")  .version
+__version__ = distribution("madmom-onnx").version
 
 # Create a doctest output checker that optionally ignores the unicode string
 # literal.
@@ -70,25 +70,26 @@ class _OutputChecker(_DoctestOutputChecker):
 
         """
         import re
+
         if optionflags & _NORMALIZE_ARRAYS:
             # in different versions of numpy arrays sometimes are displayed as
             # 'array([ 0. ,' or 'array([0.0,', thus correct both whitespace
             # after parenthesis and before commas as well as .0 decimals
-            got = re.sub(r'\( ', '(', got)
-            got = re.sub(r'\[ ', '[', got)
-            got = re.sub(r'0\.0', '0.', got)
-            got = re.sub(r'\s*,', ',', got)
-            want = re.sub(r'\( ', '(', want)
-            want = re.sub(r'\[ ', '[', want)
-            want = re.sub(r'0\.0', '0.', want)
-            want = re.sub(r'\s*,', ',', want)
+            got = re.sub(r"\( ", "(", got)
+            got = re.sub(r"\[ ", "[", got)
+            got = re.sub(r"0\.0", "0.", got)
+            got = re.sub(r"\s*,", ",", got)
+            want = re.sub(r"\( ", "(", want)
+            want = re.sub(r"\[ ", "[", want)
+            want = re.sub(r"0\.0", "0.", want)
+            want = re.sub(r"\s*,", ",", want)
         if optionflags & _NORMALIZE_FFT:
             # in different versions of numpy arrays, FFT results can be ±0.j
             # and the unwrapped phase ±pi
-            got = re.sub(r'-0.j', '+0.j', got)
-            want = re.sub(r'-0.j', '+0.j', want)
-            got = re.sub(r'-3.14159', ' 3.14159', got)
-            want = re.sub(r'-3.14159', ' 3.14159', want)
+            got = re.sub(r"-0.j", "+0.j", got)
+            want = re.sub(r"-0.j", "+0.j", want)
+            got = re.sub(r"-3.14159", " 3.14159", got)
+            want = re.sub(r"-3.14159", " 3.14159", want)
 
         super_check_output = _DoctestOutputChecker.check_output
         return super_check_output(self, want, got, optionflags)

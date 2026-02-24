@@ -19,6 +19,47 @@ It includes reference implementations for some music information retrieval
 algorithms, please see the `References`_ section.
 
 
+Changes from upstream madmom
+============================
+
+This is ``madmom-onnx``, a fork of `madmom <https://github.com/CPJKU/madmom>`_
+that replaces the legacy pickle-based NumPy neural network inference with
+`ONNX Runtime <https://onnxruntime.ai/>`_.
+
+Key differences:
+
+- All pre-trained neural network models are shipped as ``.onnx`` files instead
+  of ``.pkl``. Pickle-based model loading is removed.
+- Neural network inference uses ONNX Runtime (``onnxruntime`` package) instead
+  of the custom NumPy-based forward pass.
+
+Benchmark
+---------
+
+Measured on a 3m45s audio file, 10 runs each (mean +/- std):
+
+========================  ================  ================  =========
+Program                   madmom (pkl)      madmom-onnx       Speedup
+========================  ================  ================  =========
+CNNOnsetDetector          2.397 +/- 0.029s  1.442 +/- 0.046s  1.66x
+BeatTracker               5.326 +/- 0.071s  4.298 +/- 0.087s  1.24x
+TCNTempoDetector          5.081 +/- 0.321s  1.765 +/- 0.052s  2.88x
+========================  ================  ================  =========
+
+Generating ONNX model files
+----------------------------
+
+The ``.onnx`` model files are pre-generated and included in the repository. If
+you need to regenerate them from the original ``.pkl`` files (e.g. after
+modifying the converter), run::
+
+    python tools/convert_models_to_onnx.py --convert
+
+This requires the ``onnx`` and ``scipy`` packages to be installed. The converter
+reads each ``.pkl`` file, extracts the neural network layers, and writes an
+equivalent ``.onnx`` graph to the same directory.
+
+
 Documentation
 =============
 
@@ -59,8 +100,8 @@ you choose, please make sure that all prerequisites are installed.
 Prerequisites
 -------------
 
-To install the ``madmom`` package, you must have either Python 2.7 or Python
-3.5 or newer and the following packages installed:
+To install the ``madmom-onnx`` package, you must have either Python
+3.9 or newer and the following packages installed:
 
 - `numpy <http://www.numpy.org>`_
 - `scipy <http://www.scipy.org>`_
@@ -93,16 +134,20 @@ please follow the steps in the next section.
 The easiest way to install the package is via ``pip`` from the `PyPI (Python
 Package Index) <https://pypi.python.org/pypi>`_::
 
-    pip install madmom
+    pip install madmom-onnx
 
-This includes the latest code and trained models and will install all
-dependencies automatically.
+This includes the latest stable release and will install all dependencies
+automatically.
+
+Alternatively, if you prefer the latest code that might be unstable::
+
+    pip install git+https://github.com/CPJKU/madmom
 
 You might need higher privileges (use su or sudo) to install the package, model
 files and scripts globally. Alternatively you can install the package locally
 (i.e. only for you) by adding the ``--user`` argument::
 
-    pip install --user madmom
+    pip install --user madmom-onnx
 
 This will also install the executable programs to a common place (e.g.
 ``/usr/local/bin``), which should be in your ``$PATH`` already. If you
@@ -149,13 +194,13 @@ Upgrade a package
 
 Simply upgrade the package via pip::
 
-    pip install --upgrade madmom [--user]
+    pip install --upgrade madmom-onnx [--user]
 
 If some of the provided programs or models changed (please refer to the
 CHANGELOG) you should first uninstall the package and then reinstall::
 
-    pip uninstall madmom
-    pip install madmom [--user]
+    pip uninstall madmom-onnx
+    pip install madmom-onnx [--user]
 
 Upgrade from source
 ~~~~~~~~~~~~~~~~~~~

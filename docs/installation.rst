@@ -12,10 +12,10 @@ all :ref:`prerequisites <install_prerequisites>` are installed.
 Prerequisites
 -------------
 
-To install the ``madmom`` package, you must have either Python 2.7 or Python
+To install the ``madmom-onnx`` package, you must have either Python 2.7 or Python
 3.3 or newer and the following packages installed:
 
-To install the ``madmom`` package, you must have either Python 2.7 or Python
+To install the ``madmom-onnx`` package, you must have either Python 2.7 or Python
 3.5 or newer and the following packages installed:
 
 - `numpy <http://www.numpy.org>`_
@@ -51,7 +51,7 @@ please follow the steps in :ref:`the next section <install_from_source>`.
 The easiest way to install the package is via ``pip`` from the `PyPI (Python
 Package Index) <https://pypi.python.org/pypi>`_::
 
-  pip install madmom
+  pip install madmom-onnx
 
 This includes the latest code and trained models and will install all
 dependencies automatically.
@@ -60,7 +60,7 @@ You might need higher privileges (use su or sudo) to install the package, model
 files and scripts globally. Alternatively you can install the package locally
 (i.e. only for you) by adding the ``--user`` argument::
 
-  pip install --user madmom
+  pip install --user madmom-onnx
 
 This will also install the executable programs to a common place (e.g.
 ``/usr/local/bin``), which should be in your ``$PATH`` already. If you
@@ -111,13 +111,13 @@ Upgrade a package
 
 Simply upgrade the package via pip::
 
-  pip install --upgrade madmom [--user]
+  pip install --upgrade madmom-onnx [--user]
 
 If some of the provided programs or models changed (please refer to the
 CHANGELOG) you should first uninstall the package and then reinstall::
 
-  pip uninstall madmom
-  pip install madmom [--user]
+  pip uninstall madmom-onnx
+  pip install madmom-onnx [--user]
 
 Upgrade from source
 ~~~~~~~~~~~~~~~~~~~

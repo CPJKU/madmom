@@ -10,6 +10,8 @@ Neural Network package.
 
 from __future__ import absolute_import, division, print_function
 
+import os
+
 import numpy as np
 
 from ...processors import Processor, ParallelProcessor, SequentialProcessor
@@ -89,8 +91,23 @@ class NeuralNetwork(Processor):
 
     """
 
-    def __init__(self, layers):
+    def __init__(self, layers=None, runtime=None):
         self.layers = layers
+        self._runtime = runtime
+
+    @classmethod
+    def load(cls, *infile, **kwargs):
+        if infile:
+            nn_file = infile[0]
+        else:
+            nn_file = kwargs.pop("nn_file", kwargs.pop("infile", None))
+        if nn_file is None:
+            raise TypeError("NeuralNetwork.load() missing required model file")
+        from .onnx_runtime import OnnxNeuralNetworkRuntime
+
+        _validate_nn_model_file(nn_file)
+        runtime = OnnxNeuralNetworkRuntime(_runtime_model_source(nn_file), **kwargs)
+        return cls(runtime=runtime)
 
     def process(self, data, reset=True, **kwargs):
         """
@@ -109,6 +126,10 @@ class NeuralNetwork(Processor):
             Network predictions for this data.
 
         """
+        if self._runtime is not None:
+            return self._runtime.process(data, reset=reset, **kwargs)
+        if self.layers is None:
+            raise ValueError("neural network must define `layers` or runtime")
         # make data at least 2d (required by NN-layers)
         if isinstance(data, np.ndarray) and data.ndim < 2:
             data = np.array(data, subok=True, copy=False, ndmin=2)
@@ -117,19 +138,69 @@ class NeuralNetwork(Processor):
             # activate the layer and feed the output into the next one
             data = layer(data, reset=reset)
         # squeeze predictions to contain only true dimensions
+        if isinstance(data, np.ndarray):
+            if data.ndim > 1:
+                return data.squeeze()
+            return data
         try:
-            return data.squeeze()
-        except AttributeError:
-            # multi-task networks have multiple outputs and return lists
             return tuple([d.squeeze() for d in data])
+        except (AttributeError, TypeError):
+            return data
 
     def reset(self):
         """
         Reset the neural network to its initial state.
 
         """
+        if self._runtime is not None:
+            self._runtime.reset()
+            return
+        if self.layers is None:
+            raise ValueError("neural network must define `layers` or runtime")
         for layer in self.layers:
             layer.reset()
+
+
+def _model_extension(nn_file):
+    if hasattr(nn_file, "name") and isinstance(nn_file.name, str):
+        file_name = nn_file.name
+    else:
+        try:
+            file_name = os.fspath(nn_file)
+        except TypeError:
+            return ""
+    return os.fspath(os.path.splitext(file_name)[1].lower())
+
+
+def _unsupported_pickle_runtime_message(nn_file):
+    return (
+        "loading pickled neural networks at runtime is unsupported: '%s'. "
+        "Convert legacy .pkl models with "
+        "`python tools/convert_models_to_onnx.py --convert` and load the "
+        "generated .onnx artifact instead." % nn_file
+    )
+
+
+def _unsupported_model_format_message(nn_file, model_ext):
+    return "unsupported neural network model format '%s' for '%s'; expected '.onnx'" % (
+        model_ext,
+        nn_file,
+    )
+
+
+def _validate_nn_model_file(nn_file):
+    model_ext = _model_extension(nn_file)
+    if model_ext == ".pkl":
+        raise ValueError(_unsupported_pickle_runtime_message(nn_file))
+    if model_ext not in ("", ".onnx"):
+        raise ValueError(_unsupported_model_format_message(nn_file, model_ext))
+    return nn_file
+
+
+def _runtime_model_source(model_file):
+    if hasattr(model_file, "read") and callable(model_file.read):
+        return model_file.read()
+    return model_file
 
 
 class NeuralNetworkEnsemble(SequentialProcessor):
@@ -166,22 +237,21 @@ class NeuralNetworkEnsemble(SequentialProcessor):
 
     """
 
-    def __init__(self, networks, ensemble_fn=average_predictions,
-                 num_threads=None, **kwargs):
-        networks_processor = ParallelProcessor(networks,
-                                               num_threads=num_threads)
-        super(NeuralNetworkEnsemble, self).__init__((networks_processor,
-                                                     ensemble_fn))
+    def __init__(
+        self, networks, ensemble_fn=average_predictions, num_threads=None, **kwargs
+    ):
+        networks_processor = ParallelProcessor(networks, num_threads=num_threads)
+        super(NeuralNetworkEnsemble, self).__init__((networks_processor, ensemble_fn))
 
     @classmethod
-    def load(cls, nn_files, **kwargs):
+    def load(cls, *infile, **kwargs):
         """
         Instantiate a new Neural Network ensemble from a list of files.
 
         Parameters
         ----------
-        nn_files : list
-            List of neural network model file names.
+        infile : tuple
+            If the first argument is present, it is used as `nn_files`.
         kwargs : dict, optional
             Keyword arguments passed to NeuralNetworkEnsemble.
 
@@ -191,7 +261,20 @@ class NeuralNetworkEnsemble(SequentialProcessor):
             NeuralNetworkEnsemble instance.
 
         """
-        networks = [NeuralNetwork.load(f) for f in nn_files]
+        if infile:
+            nn_files = infile[0]
+        else:
+            nn_files = kwargs.pop("nn_files", kwargs.pop("infile", None))
+
+        if nn_files is None:
+            raise TypeError(
+                "NeuralNetworkEnsemble.load() missing required model file list"
+            )
+        intra_op_num_threads = kwargs.pop("intra_op_num_threads", 2)
+        networks = [
+            NeuralNetwork.load(f, intra_op_num_threads=intra_op_num_threads)
+            for f in nn_files
+        ]
         return cls(networks, **kwargs)
 
     @staticmethod
@@ -213,13 +296,25 @@ class NeuralNetworkEnsemble(SequentialProcessor):
 
         """
         # pylint: disable=signature-differs
+        import argparse
         from madmom.utils import OverrideDefaultListAction
+
+        def _nn_file_argument(value):
+            try:
+                return _validate_nn_model_file(value)
+            except ValueError as exc:
+                raise argparse.ArgumentTypeError(str(exc))
+
         # add neural network options
-        g = parser.add_argument_group('neural network arguments')
-        g.add_argument('--nn_files', action=OverrideDefaultListAction,
-                       type=str, default=nn_files,
-                       help='average the predictions of these pre-trained '
-                            'neural networks (multiple files can be given, '
-                            'one file per argument)')
+        g = parser.add_argument_group("neural network arguments")
+        g.add_argument(
+            "--nn_files",
+            action=OverrideDefaultListAction,
+            type=_nn_file_argument,
+            default=nn_files,
+            help="average the predictions of these pre-trained "
+            "ONNX neural networks (multiple files can be given, "
+            "one file per argument)",
+        )
         # return the argument group so it can be modified if needed
         return g

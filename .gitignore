@@ -16,6 +16,7 @@
 
 # Python egg
 /madmom.egg-info/
+/madmom_onnx.egg-info/
 
 # Vim swap files
 *.swp

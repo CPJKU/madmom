@@ -3,3 +3,8 @@ prune tests
 include CHANGES.rst
 recursive-include madmom/ *.pyx
 recursive-exclude madmom/ *.c
+recursive-exclude madmom/ *.pkl
+include madmom/models/chords/2016/chords_cnncrf.pkl
+include madmom/models/chords/2016/chords_dccrf.pkl
+include madmom/models/patterns/2013/ballroom_pattern_3_4.pkl
+include madmom/models/patterns/2013/ballroom_pattern_4_4.pkl
