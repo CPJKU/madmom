@@ -20,7 +20,8 @@ jobs:
           cache: 'pip'  # caching pip dependencies
       - name: Install dependencies
         run: |
-          sudo apt install ffmpeg libfftw3-dev
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libfftw3-dev
           python -m pip install --upgrade pip
           pip install pytest pytest-cov ruff
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
