@@ -55,15 +55,34 @@ class Processor(object):
         """
         import pickle
         from .io import open_file
+
+        class _CompatUnpickler(pickle.Unpickler):
+            # NumPy >=2.4 emits VisibleDeprecationWarning (and NumPy 3.x is
+            # expected to make it an error) when ``np.dtype`` is constructed
+            # with an int ``align`` argument. The pretrained model pickles
+            # in madmom_models still encode it as ``0`` / ``1``. Coerce the
+            # arg here so legacy pickles keep loading on modern NumPy.
+            def find_class(self, module, name):
+                obj = super().find_class(module, name)
+                if module == 'numpy' and name == 'dtype':
+                    def _coerce(*args, **kwargs):
+                        if len(args) >= 2 and type(args[1]) is int:
+                            args = (args[0], bool(args[1])) + args[2:]
+                        if type(kwargs.get('align')) is int:
+                            kwargs['align'] = bool(kwargs['align'])
+                        return obj(*args, **kwargs)
+                    return _coerce
+                return obj
+
         # instantiate a new Processor and return it
         with open_file(infile, 'rb') as f:
             # Python 2 and 3 behave differently
             try:
                 # Python 3
-                obj = pickle.load(f, encoding='latin1')
+                obj = _CompatUnpickler(f, encoding='latin1').load()
             except TypeError:
                 # Python 2 doesn't have/need the encoding
-                obj = pickle.load(f)
+                obj = _CompatUnpickler(f).load()
         return obj
 
     def dump(self, outfile):
