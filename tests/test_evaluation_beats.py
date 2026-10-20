@@ -628,6 +628,15 @@ class TestContinuityFunction(unittest.TestCase):
                             double=False, triple=True)
         self.assertEqual(scores, (0., 0., 0.3, 0.5))
 
+    def test_tolerances(self):
+        # phase and tempo tolerances must not be swapped
+        annotations = np.arange(6, dtype=float)
+        detections = annotations + 0.2
+        scores = continuity(detections, annotations, 0.3, 0.05)
+        self.assertEqual(scores, (1., 1., 1., 1.))
+        scores = continuity(detections, annotations, 0.05, 0.3)
+        self.assertEqual(scores, (0., 0., 0., 0.))
+
 
 class TestHistogramBinsHelperFunction(unittest.TestCase):
 
@@ -943,6 +952,19 @@ class TestBeatEvaluationClass(unittest.TestCase):
         error_histogram_[20] = 7
         error_histogram_[22] = 1
         self.assertTrue(np.allclose(e.error_histogram, error_histogram_))
+
+    def test_continuity_tolerances(self):
+        # phase and tempo tolerances must be passed on in the correct order
+        annotations = np.arange(6, dtype=float)
+        detections = annotations + 0.2
+        e = BeatEvaluation(detections, annotations,
+                           continuity_phase_tolerance=0.03,
+                           continuity_tempo_tolerance=0.3)
+        self.assertEqual((e.cmlc, e.cmlt), (0., 0.))
+        e = BeatEvaluation(detections, annotations,
+                           continuity_phase_tolerance=0.3,
+                           continuity_tempo_tolerance=0.03)
+        self.assertEqual((e.cmlc, e.cmlt), (1., 1.))
 
     def test_downbeat_results(self):
         det = [[0.9, 1], [2, 2], [3, 3], [4, 4], [5, 1]]

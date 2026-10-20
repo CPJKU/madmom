@@ -709,7 +709,7 @@ def continuity(detections, annotations,
     if len(detections) <= 1 or len(annotations) <= 1:
         return 0., 0., 0., 0.
     # evaluate the correct tempo
-    cmlc, cmlt = cml(detections, annotations, tempo_tolerance, phase_tolerance)
+    cmlc, cmlt = cml(detections, annotations, phase_tolerance, tempo_tolerance)
     amlc = cmlc
     amlt = cmlt
     # speed up calculation by skipping other metrical levels if the score is
@@ -728,7 +728,7 @@ def continuity(detections, annotations,
             # Note: catch the IntervalError here, because the beat variants
             #       could be too short for valid interval calculation;
             #       ok, since we already have valid values for amlc & amlt
-            c, t = cml(detections, sequence, tempo_tolerance, phase_tolerance)
+            c, t = cml(detections, sequence, phase_tolerance, tempo_tolerance)
         except BeatIntervalError:
             c, t = np.nan, np.nan
         amlc = max(amlc, c)
@@ -1063,8 +1063,8 @@ class BeatEvaluation(OnsetEvaluation):
                          goto_sigma, goto_mu)
         # continuity scores
         scores = continuity(detections, annotations,
-                            continuity_tempo_tolerance,
                             continuity_phase_tolerance,
+                            continuity_tempo_tolerance,
                             offbeat, double, triple)
         self.cmlc, self.cmlt, self.amlc, self.amlt = scores
         # information gain stuff
