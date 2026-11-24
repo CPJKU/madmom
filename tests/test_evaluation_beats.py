@@ -352,6 +352,13 @@ class TestCemgilFunction(unittest.TestCase):
         score = cemgil(DETECTIONS, ANNOTATIONS, 0.04)
         self.assertEqual(score, 0.74710035298713695)
 
+    def test_clustered_detections(self):
+        annotations = [1., 2.]
+        detections = [1., 1.01, 2.]
+        # Two exact matches, normalized by (2 + 3) / 2.
+        self.assertAlmostEqual(cemgil(detections, annotations), 0.8)
+        self.assertAlmostEqual(cemgil(detections[::-1], annotations), 0.8)
+
 
 class TestGotoFunction(unittest.TestCase):
 
