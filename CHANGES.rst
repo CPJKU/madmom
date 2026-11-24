@@ -19,6 +19,7 @@ Bug fixes:
 * `DBNBarTrackingProcessor` can model a single bar length (#394)
 * `BufferProcessor` can handle data longer than buffer length (#398)
 * Fix hanging batch processing when loading non-audio files (#443)
+* Count one nearest detection per annotated beat in Cemgil accuracy (#414)
 
 Other changes:
 

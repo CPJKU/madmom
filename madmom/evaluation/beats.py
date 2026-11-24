@@ -444,6 +444,9 @@ def cemgil(detections, annotations, sigma=CEMGIL_SIGMA):
     """
     Calculate the Cemgil accuracy for the given detections and annotations.
 
+    Each annotated beat contributes the Gaussian weight of its closest
+    detection. The sum is normalized by the mean of the two beat counts.
+
     Parameters
     ----------
     detections : list or numpy array
@@ -468,12 +471,8 @@ def cemgil(detections, annotations, sigma=CEMGIL_SIGMA):
     # sigma must be greater than 0
     if float(sigma) <= 0:
         raise ValueError("`sigma` must be greater than 0.")
-    # determine the abs. errors of the detections to the closest annotations
-    # Note: the original implementation searches for the closest matches of
-    #       detections given the annotations. Since absolute errors > a usual
-    #       beat interval produce high errors (and thus in turn add negligible
-    #       values to the accuracy), it is safe to swap those two.
-    errors = calc_absolute_errors(detections, annotations)
+    # The nearest-neighbor lookup searches the second sequence in time order.
+    errors = calc_absolute_errors(annotations, np.sort(detections))
     # apply a Gaussian error function with the given std. dev. on the errors
     acc = np.exp(-(errors ** 2.) / (2. * (sigma ** 2.)))
     # and sum up the accuracy
